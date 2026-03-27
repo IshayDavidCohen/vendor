@@ -22,6 +22,7 @@ import { StatsCard } from '@/components/StatsCard';
 import { OrderCard } from '@/components/OrderCard';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
+import { ActionCard } from '@/components/ActionCard';
 import { Spinner } from '@/components/Spinner';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -69,6 +70,7 @@ function BusinessDashboard({ profile }: { profile: Business }) {
           description="Here's an overview of your business activity"
         />
 
+        {/* Three view objects (Active orders, Connected Suppliers, Pending Handshakes) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -100,6 +102,8 @@ function BusinessDashboard({ profile }: { profile: Business }) {
           </View>
         </ScrollView>
 
+
+        {/* Recent Orders Section */}
         <Card>
           <CardHeader
             style={{
@@ -161,126 +165,29 @@ function BusinessDashboard({ profile }: { profile: Business }) {
           )}
         </Card>
 
+
+        {/* Three bottom buttons */}
         <View style={{ marginTop: Spacing.lg, gap: Spacing.md }}>
-          <Pressable onPress={() => router.push('/(app)/categories')}>
-            <Card>
-              <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    backgroundColor: `${Colors.primary}18`,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Users size={24} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans-SemiBold',
-                      fontSize: 15,
-                      color: Colors.foreground,
-                    }}
-                  >
-                    Browse Suppliers
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans',
-                      fontSize: 13,
-                      color: Colors.mutedForeground,
-                      marginTop: 2,
-                    }}
-                  >
-                    Find new suppliers
-                  </Text>
-                </View>
-              </CardContent>
-            </Card>
-          </Pressable>
+          <ActionCard
+            icon={<Users size={24} color={Colors.primary} />}
+            title="Browse Suppliers"
+            description="Find new suppliers"
+            onPress={() => router.push('/(app)/categories')}
+          />
 
-          <Pressable onPress={() => router.push('/(app)/orders')}>
-            <Card>
-              <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    backgroundColor: `${Colors.primary}18`,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <ShoppingCart size={24} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans-SemiBold',
-                      fontSize: 15,
-                      color: Colors.foreground,
-                    }}
-                  >
-                    View Orders
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans',
-                      fontSize: 13,
-                      color: Colors.mutedForeground,
-                      marginTop: 2,
-                    }}
-                  >
-                    Track your orders
-                  </Text>
-                </View>
-              </CardContent>
-            </Card>
-          </Pressable>
+          <ActionCard
+            icon={<ShoppingCart size={24} color={Colors.primary} />}
+            title="View Orders"
+            description="Track your orders"
+            onPress={() => router.push('/(app)/orders')}
+          />
 
-          <Pressable onPress={() => router.push('/(app)/handshakes')}>
-            <Card>
-              <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    backgroundColor: `${Colors.primary}18`,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Handshake size={24} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans-SemiBold',
-                      fontSize: 15,
-                      color: Colors.foreground,
-                    }}
-                  >
-                    Manage Handshakes
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans',
-                      fontSize: 13,
-                      color: Colors.mutedForeground,
-                      marginTop: 2,
-                    }}
-                  >
-                    Connection requests
-                  </Text>
-                </View>
-              </CardContent>
-            </Card>
-          </Pressable>
+          <ActionCard
+            icon={<Handshake size={24} color={Colors.primary} />}
+            title="Manage Handshakes"
+            description="Connection requests"
+            onPress={() => router.push('/(app)/handshakes')}
+          />
         </View>
       </View>
     </ScrollView>
@@ -414,125 +321,26 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
         </Card>
 
         <View style={{ marginTop: Spacing.lg, gap: Spacing.md }}>
-          <Pressable onPress={() => router.push('/(app)/items')}>
-            <Card>
-              <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    backgroundColor: `${Colors.primary}18`,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Package size={24} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans-SemiBold',
-                      fontSize: 15,
-                      color: Colors.foreground,
-                    }}
-                  >
-                    Manage Items
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans',
-                      fontSize: 13,
-                      color: Colors.mutedForeground,
-                      marginTop: 2,
-                    }}
-                  >
-                    Edit your catalogue
-                  </Text>
-                </View>
-              </CardContent>
-            </Card>
-          </Pressable>
+          <ActionCard
+            icon={<Package size={24} color={Colors.primary} />}
+            title="Manage Items"
+            description="Edit your catalogue"
+            onPress={() => router.push('/(app)/categories')}
+          />
 
-          <Pressable onPress={() => router.push('/(app)/orders')}>
-            <Card>
-              <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    backgroundColor: `${Colors.primary}18`,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <ShoppingCart size={24} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans-SemiBold',
-                      fontSize: 15,
-                      color: Colors.foreground,
-                    }}
-                  >
-                    View Orders
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans',
-                      fontSize: 13,
-                      color: Colors.mutedForeground,
-                      marginTop: 2,
-                    }}
-                  >
-                    Manage incoming orders
-                  </Text>
-                </View>
-              </CardContent>
-            </Card>
-          </Pressable>
+          <ActionCard
+            icon={<ShoppingCart size={24} color={Colors.primary} />}
+            title="View Orders"
+            description="Manage incoming orders"
+            onPress={() => router.push('/(app)/orders')}
+          />
 
-          <Pressable onPress={() => router.push('/(app)/handshakes')}>
-            <Card>
-              <CardContent style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-                <View
-                  style={{
-                    width: 48,
-                    height: 48,
-                    borderRadius: 12,
-                    backgroundColor: `${Colors.primary}18`,
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                  }}
-                >
-                  <Handshake size={24} color={Colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans-SemiBold',
-                      fontSize: 15,
-                      color: Colors.foreground,
-                    }}
-                  >
-                    Manage Handshakes
-                  </Text>
-                  <Text
-                    style={{
-                      fontFamily: 'PlusJakartaSans',
-                      fontSize: 13,
-                      color: Colors.mutedForeground,
-                      marginTop: 2,
-                    }}
-                  >
-                    Business requests
-                  </Text>
-                </View>
-              </CardContent>
-            </Card>
-          </Pressable>
+          <ActionCard
+            icon={<Handshake size={24} color={Colors.primary} />}
+            title="Manage Handshakes"
+            description="Business requests"
+            onPress={() => router.push('/(app)/handshakes')}
+          />
         </View>
       </View>
     </ScrollView>

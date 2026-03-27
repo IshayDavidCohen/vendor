@@ -40,7 +40,7 @@ export function Tabs({
 
   return (
     <TabsContext.Provider value={{ value, onValueChange }}>
-      <View style={[{ flex: 1, gap: 8 }, style]}>{children}</View>
+      <View style={[{ flex: 1 }, style]}>{children}</View>
     </TabsContext.Provider>
   );
 }
@@ -57,6 +57,8 @@ export function TabsList({ children, style, scrollable }: TabsListProps) {
       style={[
         {
           flexDirection: 'row',
+          alignItems: 'center',
+          alignSelf: 'flex-start',
           backgroundColor: Colors.muted,
           borderRadius: 8,
           padding: 3,
@@ -70,7 +72,7 @@ export function TabsList({ children, style, scrollable }: TabsListProps) {
 
   if (scrollable) {
     return (
-      <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingRight: 4, flexGrow: 0}} style={{ flexGrow: 0, flexShrink: 0 }}>
         {content}
       </ScrollView>
     );
@@ -93,7 +95,6 @@ export function TabsTrigger({ value, children, style }: TabsTriggerProps) {
       onPress={() => onValueChange(value)}
       style={[
         {
-          flex: 1,
           alignItems: 'center',
           justifyContent: 'center',
           paddingVertical: 6,
