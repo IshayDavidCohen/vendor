@@ -7,6 +7,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
 import {
   Package,
@@ -37,6 +38,12 @@ import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Colors } from '@/constants/theme';
+
+
+/* REMOVE AFTER DEV */
+/* This pulls unit from mock data */
+import { UNIT_OPTIONS } from '@/mocks/data'; 
+/* END REMOVE AFTER DEV */
 
 interface ItemFormData {
   name: string;
@@ -109,8 +116,7 @@ export default function ItemsScreen() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState<Item | null>(null);
-  const [formData, setFormData] = useState<ItemFormData>(defaultFormData);
+  
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -118,6 +124,64 @@ export default function ItemsScreen() {
     () => categories.map(c => ({ label: c.title, value: c.oid })),
     [categories],
   );
+
+  type ItemDraft = {
+  id?: string;
+  name: string;
+  category: string;
+  image: string;
+  desc: string;
+  base_price: string;
+  unit: string;
+  currency: string;
+  isNew: boolean;
+};
+
+const emptyDraft: ItemDraft = {
+  name: '',
+  category: '',
+  image: '',
+  desc: '',
+  base_price: '',
+  unit: 'unit',
+  currency: 'USD',
+  isNew: true,
+};
+
+const [draftItem, setDraftItem] = useState<ItemDraft>(emptyDraft);
+
+  const pickImage = async () => {
+    try {
+      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+      if (!permission.granted) {
+        Toast.show({
+          type: 'error',
+          text1: 'Permission required',
+          text2: 'Please allow access to your photo library',
+        });
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        quality: 0.8,
+      });
+
+      if (result.canceled) return;
+
+      const asset = result.assets?.[0];
+      if (!asset?.uri) return;
+
+      setDraftItem(prev => ({
+          ...prev,
+          image: asset.uri,
+        }));
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed to pick image' });
+    }
+  };
 
   const fetchItems = useCallback(async () => {
     if (!platformId || role !== 'supplier') {
@@ -158,77 +222,99 @@ export default function ItemsScreen() {
     }
   }, [role, platformId, fetchItems, fetchCategories]);
 
-  const openModal = (item?: Item) => {
-    if (item) {
-      setEditingItem(item);
-      setFormData({
-        name: item.name,
-        category: item.category,
-        image: item.image,
-        desc: item.desc,
-        base_price: item.base_price.toString(),
-        unit: item.unit,
-        currency: item.currency,
-      });
-    } else {
-      setEditingItem(null);
-      setFormData(defaultFormData);
-    }
-    setModalOpen(true);
+
+const openModal = (item?: Item) => {
+  if (item) {
+    setDraftItem({
+      id: item.id,
+      name: item.name,
+      category: item.category,
+      image: item.image,
+      desc: item.desc,
+      base_price: item.base_price.toString(),
+      unit: item.unit,
+      currency: item.currency,
+      isNew: false,
+    });
+  } else {
+    setDraftItem(emptyDraft);
+  }
+
+  setModalOpen(true);
   };
 
-  const closeModal = () => {
-    setModalOpen(false);
-    setEditingItem(null);
-    setFormData(defaultFormData);
+
+const closeModal = () => {
+  setModalOpen(false);
+  setDraftItem(emptyDraft);
   };
+
 
   const handleSave = async () => {
-    if (!formData.name.trim() || !formData.base_price.trim()) {
+    if (!draftItem.name.trim() || !draftItem.base_price.trim()) {
       Toast.show({ type: 'error', text1: 'Please fill in required fields' });
       return;
     }
-    const price = parseFloat(formData.base_price);
+
+    const price = parseFloat(draftItem.base_price);
     if (Number.isNaN(price)) {
       Toast.show({ type: 'error', text1: 'Invalid price' });
       return;
     }
+
     if (!platformId) return;
 
+    const payload = {
+      name: draftItem.name,
+      category: draftItem.category,
+      image: draftItem.image,
+      desc: draftItem.desc,
+      base_price: price,
+      unit: draftItem.unit,
+      currency: draftItem.currency,
+    };
+
+    /* TODO: Sent full payload without itemID to backend, and backend will return the created id, and frontend adds it */ 
+    /* REMOVE AFTER DEV */ 
+    console.log('--- ITEM SAVE DEBUG START ---');
+    console.log('mode:', draftItem.isNew ? 'create' : 'update');
+    console.log('draftItem:', draftItem);
+    console.log('payload:', payload);
+    console.log('itemId:', draftItem.id ?? null);
+    console.log('imageUri:', draftItem.image);
+    console.log('price parsed ok:', price);
+    console.log('--- ITEM SAVE DEBUG END ---');
+
+    Toast.show({
+      type: 'success',
+      text1: draftItem.isNew ? 'Create payload logged' : 'Update payload logged',
+    });
+    /* END REMOVE AFTER DEV */ 
     setSaving(true);
     try {
-      if (editingItem) {
-        const { error } = await itemsApi.update(editingItem.id, {
-          name: formData.name,
-          category: formData.category,
-          image: formData.image,
-          desc: formData.desc,
-          base_price: price,
-          unit: formData.unit,
-          currency: formData.currency,
-        });
-        if (error) {
-          Toast.show({ type: 'error', text1: 'Failed to update item', text2: error });
-          return;
-        }
-        Toast.show({ type: 'success', text1: 'Item updated' });
-      } else {
+      if (draftItem.isNew) {
         const { error } = await supplierApi.createItem({
           supplier_id: platformId,
-          name: formData.name,
-          category: formData.category,
-          image: formData.image,
-          desc: formData.desc,
-          base_price: price,
-          unit: formData.unit,
-          currency: formData.currency,
+          ...payload,
         });
+
         if (error) {
           Toast.show({ type: 'error', text1: 'Failed to create item', text2: error });
           return;
         }
+
         Toast.show({ type: 'success', text1: 'Item created' });
+      } else {
+        const { error } = await itemsApi.update(draftItem.id!, payload);
+
+        if (error) {
+          Toast.show({ type: 'error', text1: 'Failed to update item', text2: error });
+          return;
+        }
+
+        Toast.show({ type: 'success', text1: 'Item updated' });
       }
+
       closeModal();
       fetchItems();
     } catch {
@@ -544,10 +630,8 @@ export default function ItemsScreen() {
 
       <Modal visible={modalOpen} onClose={closeModal} animationType="slide">
         <ModalHeader
-          title={editingItem ? 'Edit Item' : 'Add New Item'}
-          description={
-            editingItem ? 'Update the details of your item' : 'Add a new item to your catalogue'
-          }
+          title={draftItem.isNew ? 'Add New Item' : 'Edit Item'}
+          description={draftItem.isNew ? 'Add a new item to your catalogue' : 'Update the details of your item'}
           onClose={closeModal}
         />
         <ScrollView
@@ -559,46 +643,73 @@ export default function ItemsScreen() {
             <Input
               label="Name *"
               placeholder="Product name"
-              value={formData.name}
-              onChangeText={v => setFormData(p => ({ ...p, name: v }))}
+              value={draftItem.name}
+              onChangeText={v => setDraftItem(p => ({ ...p, name: v }))}
             />
             <Select
               label="Category"
               placeholder="Select a category"
               options={categoryOptions}
-              value={formData.category || undefined}
-              onValueChange={v => setFormData(p => ({ ...p, category: v }))}
+              value={draftItem.category}
+              onValueChange={v => setDraftItem(p => ({ ...p, category: v }))}
             />
-            <Input
-              label="Image URL"
-              placeholder="https://example.com/image.png"
-              value={formData.image}
-              onChangeText={v => setFormData(p => ({ ...p, image: v }))}
-            />
+            <View style={{ gap: 8 }}>
+              <Text
+                style={{
+                  fontSize: 14,
+                  fontFamily: 'PlusJakartaSans-Medium',
+                  color: Colors.foreground,
+                }}
+              >
+                Product Image
+              </Text>
+
+              <Button variant="outline" onPress={pickImage}>
+                Browse Picture
+              </Button>
+
+              {draftItem.image ? (
+                <View
+                  style={{
+                    height: 160,
+                    borderRadius: 12,
+                    overflow: 'hidden',
+                    backgroundColor: Colors.muted,
+                  }}
+                >
+                  <Image
+                    source={{ uri: draftItem.image }}
+                    style={{ width: '100%', height: '100%' }}
+                    contentFit="cover"
+                  />
+                </View>
+              ) : null}
+            </View>
             <TextArea
               label="Description"
               placeholder="Describe your product"
-              value={formData.desc}
-              onChangeText={v => setFormData(p => ({ ...p, desc: v }))}
+              value={draftItem.desc}
+              onChangeText={v => setDraftItem(p => ({ ...p, desc: v }))}
             />
             <Input
               label="Price *"
               placeholder="0.00"
               keyboardType="decimal-pad"
-              value={formData.base_price}
-              onChangeText={v => setFormData(p => ({ ...p, base_price: v }))}
+              value={draftItem.base_price}
+              onChangeText={v => setDraftItem(p => ({ ...p, base_price: v }))}
             />
             <Select
               label="Currency"
               options={CURRENCY_OPTIONS}
-              value={formData.currency}
-              onValueChange={v => setFormData(p => ({ ...p, currency: v }))}
+              value={draftItem.currency}
+              onValueChange={v => setDraftItem(p => ({ ...p, currency: v }))}
             />
-            <Input
+            <Select
               label="Unit"
-              placeholder="kg, unit, etc."
-              value={formData.unit}
-              onChangeText={v => setFormData(p => ({ ...p, unit: v }))}
+              placeholder="Select a unit"
+              options={UNIT_OPTIONS}
+              value={draftItem.unit}
+              onValueChange={v => setDraftItem(p => ({ ...p, unit: v }))}
             />
           </ModalContent>
         </ScrollView>
@@ -607,7 +718,7 @@ export default function ItemsScreen() {
             Cancel
           </Button>
           <Button onPress={handleSave} loading={saving} disabled={saving}>
-            {editingItem ? 'Update' : 'Create'}
+            {draftItem.isNew ? 'Create' : 'Update'}
           </Button>
         </ModalFooter>
       </Modal>

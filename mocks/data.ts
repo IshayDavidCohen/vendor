@@ -16,6 +16,36 @@ import type {
 // =======================================================
 
 // ===================
+// UNITS
+// ==================
+export const UNIT_OPTIONS = [
+  { label: 'Unit', value: 'unit' },
+  { label: 'Each', value: 'each' },
+  { label: 'Piece', value: 'piece' },
+  { label: 'Bottle', value: 'bottle' },
+  { label: 'Box', value: 'box' },
+  { label: 'Bundle', value: 'bundle' },
+  { label: 'Case', value: 'case' },
+  { label: 'Dozen', value: 'dozen' },
+  { label: 'Keg', value: 'keg' },
+  { label: 'Loaf', value: 'loaf' },
+  { label: 'Rack', value: 'rack' },
+  { label: '4-Pack', value: '4-pack' },
+  { label: '6-Pack', value: '6-pack' },
+
+  { label: 'Kilogram (kg)', value: 'kg' },
+  { label: 'Gram (g)', value: 'g' },
+  { label: 'Pound (lb)', value: 'lb' },
+
+  { label: 'Litre', value: 'litre' },
+  { label: 'Millilitre (ml)', value: 'ml' },
+  { label: 'Gallon', value: 'gallon' },
+  { label: 'Quart', value: 'quart' },
+  { label: 'Pint', value: 'pint' },
+];
+
+
+// ===================
 // CATEGORIES
 // ===================
 let categories: Category[] = [
