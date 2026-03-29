@@ -54,7 +54,7 @@ function BusinessDashboard({ profile }: { profile: Business }) {
 
   const renderOrder: ListRenderItem<Order> = ({ item }) => (
     <View style={{ marginBottom: Spacing.md }}>
-      <OrderCard order={item} role="business" onStatusUpdate={fetchOrders} compact />
+      <OrderCard order={item} role="business" onStatusUpdate={fetchOrders} />
     </View>
   );
 
@@ -217,7 +217,7 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
 
   const renderOrder: ListRenderItem<Order> = ({ item }) => (
     <View style={{ marginBottom: Spacing.md }}>
-      <OrderCard order={item} role="supplier" onStatusUpdate={fetchOrders} compact />
+      <OrderCard order={item} role="supplier" onStatusUpdate={fetchOrders} />
     </View>
   );
 
@@ -325,7 +325,7 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
             icon={<Package size={24} color={Colors.primary} />}
             title="Manage Items"
             description="Edit your catalogue"
-            onPress={() => router.push('/(app)/categories')}
+            onPress={() => router.push('/(app)/items')}
           />
 
           <ActionCard
