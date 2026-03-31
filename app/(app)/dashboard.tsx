@@ -1,10 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   ScrollView,
   FlatList,
-  Pressable,
+  type ViewStyle,
   type ListRenderItem,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -13,48 +13,205 @@ import {
   Users,
   Handshake,
   Package,
-  ArrowRight,
+  DollarSign,
+  ClipboardList,
 } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
-import { ordersApi } from '@/services/api';
-import type { Business, Supplier, Order } from '@/types';
+import { ordersApi, handshakeApi } from '@/services/api';
+import type { Business, Supplier, Order, Handshake as HandshakeType } from '@/types';
+import { getSupplierById, getBusinessById } from '@/mocks/data';
 import { StatsCard } from '@/components/StatsCard';
 import { OrderCard } from '@/components/OrderCard';
+import { OrderPipeline } from '@/components/OrderPipeline';
+import { SpendCategoryBar } from '@/components/SpendCategoryBar';
+import { SupplierRankItem } from '@/components/SupplierRankItem';
+import { HandshakeActivityItem } from '@/components/HandshakeActivityItem';
+import { SectionHeader } from '@/components/SectionHeader';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { ActionCard } from '@/components/ActionCard';
 import { Spinner } from '@/components/Spinner';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/Card';
+import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Colors, Spacing } from '@/constants/theme';
 
 const STAT_CARD_WIDTH = 260;
 
+// ─── Category colors used in spend breakdown bars ────────────────────────────
+const CATEGORY_COLORS: Record<string, string> = {
+  'cat-alcohol': '#7C3AED',
+  'cat-meat': '#EF4444',
+  'cat-seafood': '#3B82F6',
+  'cat-dairy': '#10B981',
+  'cat-produce': '#F59E0B',
+  'cat-bakery': '#F97316',
+  'cat-beverages': '#06B6D4',
+  'cat-frozen': '#8B5CF6',
+};
+
+const ITEM_COLORS = ['#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#F97316'];
+
+// ─── Divider between list items ──────────────────────────────────────────────
+function ListDivider() {
+  return (
+    <View
+      style={{
+        height: 1,
+        backgroundColor: Colors.border,
+      }}
+    />
+  );
+}
+
+// ─── Skeleton placeholder for card sections ──────────────────────────────────
+function CardSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <CardContent style={{ gap: Spacing.md }}>
+      {Array.from({ length: rows }).map((_, i) => (
+        <Skeleton key={i} height={44} borderRadius={10} />
+      ))}
+    </CardContent>
+  );
+}
+
+// ─── Two-column row with equal-height cards ──────────────────────────────────
+function TwoColumnRow({
+  children,
+  style,
+}: {
+  children: React.ReactNode;
+  style?: ViewStyle;
+}) {
+  return (
+    <View
+      style={[
+        {
+          flexDirection: 'row',
+          alignItems: 'stretch',
+          gap: Spacing.md,
+          marginTop: Spacing.lg,
+        },
+        style,
+      ]}
+    >
+      {children}
+    </View>
+  );
+}
+
+// ═════════════════════════════════════════════════════════════════════════════
+// BUSINESS DASHBOARD
+// ═════════════════════════════════════════════════════════════════════════════
+
 function BusinessDashboard({ profile }: { profile: Business }) {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [handshakes, setHandshakes] = useState<HandshakeType[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data } = await ordersApi.getBusinessOrders(profile.id);
-    if (data) setOrders(data);
+    const [ordersRes, hsRes] = await Promise.all([
+      ordersApi.getBusinessOrders(profile.id),
+      handshakeApi.getUserHandshakes('business', profile.id),
+    ]);
+    if (ordersRes.data) setOrders(ordersRes.data);
+    if (hsRes.data) setHandshakes(hsRes.data);
     setLoading(false);
   }, [profile.id]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchData();
+  }, [fetchData]);
+
+  // ── Computed dashboard data ──────────────────────────────────────────────
+  const activeOrders = useMemo(
+    () => orders.filter(o => o.status !== 'arrived' && o.status !== 'rejected'),
+    [orders],
+  );
+
+  const totalActiveValue = useMemo(
+    () => activeOrders.reduce((sum, o) => sum + o.total_price, 0),
+    [activeOrders],
+  );
 
   const activeOrdersCount = profile.active_orders?.length ?? 0;
   const suppliersCount = profile.my_suppliers?.length ?? 0;
   const pendingHandshakes = profile.handshake_requests?.length ?? 0;
-  const recent = orders.slice(0, 5);
+
+  // Spend by supplier (across all orders)
+  const supplierSpend = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const order of orders) {
+      map[order.supplier_id] = (map[order.supplier_id] ?? 0) + order.total_price;
+    }
+    return Object.entries(map)
+      .map(([id, spend]) => {
+        const sup = getSupplierById(id);
+        return {
+          id,
+          name: sup?.company_name ?? id,
+          initials: (sup?.company_name ?? 'UN')
+            .split(' ')
+            .map(w => w[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+          category: sup?.categories?.[0] ?? '',
+          spend,
+        };
+      })
+      .sort((a, b) => b.spend - a.spend);
+  }, [orders]);
+
+  // Spend by category (from supplier categories of each order)
+  const categorySpend = useMemo(() => {
+    const map: Record<string, { label: string; value: number }> = {};
+    for (const order of orders) {
+      const sup = getSupplierById(order.supplier_id);
+      const cat = sup?.categories?.[0] ?? 'other';
+      const label = cat
+        .replace('cat-', '')
+        .replace(/^\w/, c => c.toUpperCase());
+      if (!map[cat]) map[cat] = { label, value: 0 };
+      map[cat].value += order.total_price;
+    }
+    return Object.entries(map)
+      .map(([key, v]) => ({ key, ...v }))
+      .sort((a, b) => b.value - a.value);
+  }, [orders]);
+
+  const maxCategorySpend = categorySpend[0]?.value ?? 1;
+
+  // Recent orders (last 5, sorted newest first)
+  const recentOrders = useMemo(
+    () =>
+      [...orders]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
+        .slice(0, 5),
+    [orders],
+  );
+
+  // Pending handshakes for feed
+  const recentHandshakes = useMemo(
+    () =>
+      handshakes
+        .filter(h => h.status === 'pending')
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
+        .slice(0, 4),
+    [handshakes],
+  );
 
   const renderOrder: ListRenderItem<Order> = ({ item }) => (
     <View style={{ marginBottom: Spacing.md }}>
-      <OrderCard order={item} role="business" onStatusUpdate={fetchOrders} />
+      <OrderCard order={item} role="business" onStatusUpdate={fetchData} />
     </View>
   );
 
@@ -70,7 +227,7 @@ function BusinessDashboard({ profile }: { profile: Business }) {
           description="Here's an overview of your business activity"
         />
 
-        {/* Three view objects (Active orders, Connected Suppliers, Pending Handshakes) */}
+        {/* ── Stat cards ────────────────────────────────────────────────── */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -80,16 +237,22 @@ function BusinessDashboard({ profile }: { profile: Business }) {
             <StatsCard
               title="Active Orders"
               value={activeOrdersCount}
-              description="Orders in progress"
+              description={`$${totalActiveValue.toLocaleString()} total value`}
               icon={<ShoppingCart size={24} color={Colors.primary} />}
+              trend={
+                activeOrdersCount > 0
+                  ? { label: `${activeOrdersCount} in progress`, direction: 'up' }
+                  : undefined
+              }
             />
           </View>
           <View style={{ width: STAT_CARD_WIDTH }}>
             <StatsCard
               title="Connected Suppliers"
               value={suppliersCount}
-              description="Your supplier network"
-              icon={<Users size={24} color={Colors.primary} />}
+              description={`Across ${profile.categories?.length ?? 0} categories`}
+              icon={<Users size={24} color="#3B82F6" />}
+              iconBg="#EFF6FF"
             />
           </View>
           <View style={{ width: STAT_CARD_WIDTH }}>
@@ -97,76 +260,171 @@ function BusinessDashboard({ profile }: { profile: Business }) {
               title="Pending Handshakes"
               value={pendingHandshakes}
               description="Awaiting response"
-              icon={<Handshake size={24} color={Colors.primary} />}
+              icon={<Handshake size={24} color="#F59E0B" />}
+              iconBg="#FFFBEB"
             />
           </View>
         </ScrollView>
 
+        {/* ── Order pipeline + Spend by category ────────────────────────── */}
+        <TwoColumnRow style={{ marginTop: 0 }}>
+          <View style={{ flex: 1.15 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader title="Order pipeline" />
+              <CardContent>
+                {loading ? (
+                  <Skeleton height={64} borderRadius={10} />
+                ) : (
+                  <OrderPipeline orders={orders} role="business" />
+                )}
+              </CardContent>
+            </Card>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader title="Spend by category" />
+              <CardContent>
+                {loading ? (
+                  <CardSkeleton rows={4} />
+                ) : categorySpend.length === 0 ? (
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'PlusJakartaSans',
+                      color: Colors.mutedForeground,
+                      textAlign: 'center',
+                      paddingVertical: 12,
+                    }}
+                  >
+                    No order data yet
+                  </Text>
+                ) : (
+                  categorySpend.map((cat, i) => (
+                    <SpendCategoryBar
+                      key={cat.key}
+                      label={cat.label}
+                      value={cat.value}
+                      maxValue={maxCategorySpend}
+                      color={CATEGORY_COLORS[cat.key] ?? ITEM_COLORS[i % ITEM_COLORS.length]}
+                    />
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </View>
+        </TwoColumnRow>
 
-        {/* Recent Orders Section */}
-        <Card>
-          <CardHeader
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <CardTitle>Recent Orders</CardTitle>
-              <CardDescription>Your latest order activity</CardDescription>
-            </View>
-            <Button variant="ghost" size="sm" onPress={() => router.push('/(app)/orders')}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text
-                  style={{
-                    fontFamily: 'PlusJakartaSans-SemiBold',
-                    fontSize: 13,
-                    color: Colors.foreground,
-                  }}
-                >
-                  View all
-                </Text>
-                <ArrowRight size={16} color={Colors.foreground} />
-              </View>
-            </Button>
-          </CardHeader>
-          {loading ? (
-            <CardContent style={{ gap: Spacing.md }}>
-              <Skeleton height={64} borderRadius={10} />
-              <Skeleton height={64} borderRadius={10} />
-              <Skeleton height={64} borderRadius={10} />
-            </CardContent>
-          ) : orders.length === 0 ? (
-            <CardContent>
-              <EmptyState
-                icon={<ShoppingCart size={36} color={Colors.mutedForeground} />}
-                title="No orders yet"
-                description="Browse suppliers to place your first order"
-                action={
-                  <Button onPress={() => router.push('/(app)/categories')}>
-                    Browse Suppliers
-                  </Button>
-                }
-              />
-            </CardContent>
-          ) : (
-            <FlatList
-              data={recent}
-              keyExtractor={item => item.id}
-              renderItem={renderOrder}
-              scrollEnabled={false}
-              nestedScrollEnabled
-              contentContainerStyle={{
-                paddingHorizontal: Spacing.lg,
-                paddingBottom: Spacing.lg,
-              }}
+        {/* ── Recent orders (own row, full OrderCard with progress bar) ── */}
+        <View style={{ marginTop: Spacing.lg }}>
+          <Card>
+            <SectionHeader
+              title="Recent orders"
+              description="Your latest order activity"
+              actionLabel="View all"
+              onAction={() => router.push('/(app)/orders')}
             />
-          )}
-        </Card>
+            {loading ? (
+              <CardContent style={{ gap: Spacing.md }}>
+                <Skeleton height={64} borderRadius={10} />
+                <Skeleton height={64} borderRadius={10} />
+                <Skeleton height={64} borderRadius={10} />
+              </CardContent>
+            ) : recentOrders.length === 0 ? (
+              <CardContent>
+                <EmptyState
+                  icon={<ShoppingCart size={36} color={Colors.mutedForeground} />}
+                  title="No orders yet"
+                  description="Browse suppliers to place your first order"
+                  action={
+                    <Button onPress={() => router.push('/(app)/categories')}>
+                      Browse Suppliers
+                    </Button>
+                  }
+                />
+              </CardContent>
+            ) : (
+              <FlatList
+                data={recentOrders}
+                keyExtractor={item => item.id}
+                renderItem={renderOrder}
+                scrollEnabled={false}
+                nestedScrollEnabled
+                contentContainerStyle={{
+                  paddingHorizontal: Spacing.lg,
+                  paddingBottom: Spacing.lg,
+                }}
+              />
+            )}
+          </Card>
+        </View>
 
+        {/* ── Top suppliers + Handshake activity (same row) ─────────────── */}
+        <TwoColumnRow>
+          <View style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader
+                title="Top suppliers"
+                actionLabel="Browse"
+                onAction={() => router.push('/(app)/categories')}
+              />
+              <CardContent>
+                {loading ? (
+                  <CardSkeleton rows={4} />
+                ) : supplierSpend.length === 0 ? (
+                  <EmptyState
+                    icon={<Users size={30} color={Colors.mutedForeground} />}
+                    title="No suppliers"
+                    description="Connect with suppliers to get started"
+                  />
+                ) : (
+                  supplierSpend.slice(0, 5).map((sup, i) => (
+                    <View key={sup.id}>
+                      {i > 0 && <ListDivider />}
+                      <SupplierRankItem
+                        initials={sup.initials}
+                        name={sup.name}
+                        subtitle={sup.category.replace('cat-', '').replace(/^\w/, c => c.toUpperCase())}
+                        value={`$${sup.spend.toLocaleString()}`}
+                      />
+                    </View>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader
+                title="Handshake activity"
+                actionLabel="Manage"
+                onAction={() => router.push('/(app)/handshakes')}
+              />
+              <CardContent>
+                {loading ? (
+                  <CardSkeleton rows={3} />
+                ) : recentHandshakes.length === 0 ? (
+                  <EmptyState
+                    icon={<Handshake size={30} color={Colors.mutedForeground} />}
+                    title="All clear"
+                    description="No pending requests"
+                  />
+                ) : (
+                  recentHandshakes.map((hs, i) => (
+                    <View key={hs.id}>
+                      {i > 0 && <ListDivider />}
+                      <HandshakeActivityItem
+                        handshake={hs}
+                        platformId={profile.id}
+                      />
+                    </View>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </View>
+        </TwoColumnRow>
 
-        {/* Three bottom buttons */}
+        {/* ── Quick actions ──────────────────────────────────────────────── */}
         <View style={{ marginTop: Spacing.lg, gap: Spacing.md }}>
           <ActionCard
             icon={<Users size={24} color={Colors.primary} />}
@@ -174,14 +432,12 @@ function BusinessDashboard({ profile }: { profile: Business }) {
             description="Find new suppliers"
             onPress={() => router.push('/(app)/categories')}
           />
-
           <ActionCard
             icon={<ShoppingCart size={24} color={Colors.primary} />}
             title="View Orders"
             description="Track your orders"
             onPress={() => router.push('/(app)/orders')}
           />
-
           <ActionCard
             icon={<Handshake size={24} color={Colors.primary} />}
             title="Manage Handshakes"
@@ -194,30 +450,114 @@ function BusinessDashboard({ profile }: { profile: Business }) {
   );
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// SUPPLIER DASHBOARD
+// ═════════════════════════════════════════════════════════════════════════════
+
 function SupplierDashboard({ profile }: { profile: Supplier }) {
   const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [handshakes, setHandshakes] = useState<HandshakeType[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchOrders = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data } = await ordersApi.getSupplierOrders(profile.id);
-    if (data) setOrders(data);
+    const [ordersRes, hsRes] = await Promise.all([
+      ordersApi.getSupplierOrders(profile.id),
+      handshakeApi.getUserHandshakes('supplier', profile.id),
+    ]);
+    if (ordersRes.data) setOrders(ordersRes.data);
+    if (hsRes.data) setHandshakes(hsRes.data);
     setLoading(false);
   }, [profile.id]);
 
   useEffect(() => {
-    fetchOrders();
-  }, [fetchOrders]);
+    fetchData();
+  }, [fetchData]);
 
+  // ── Computed supplier data ───────────────────────────────────────────────
   const activeOrdersCount = profile.active_orders?.length ?? 0;
   const itemsCount = profile.items?.length ?? 0;
   const pendingHandshakes = profile.handshake_requests?.length ?? 0;
-  const recent = orders.slice(0, 5);
+
+  const totalRevenue = useMemo(
+    () => orders.reduce((sum, o) => sum + o.total_price, 0),
+    [orders],
+  );
+
+  // Revenue by item
+  const itemRevenue = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const order of orders) {
+      for (const oi of order.ordered_items) {
+        map[oi.item_id] = (map[oi.item_id] ?? 0) + oi.total_price_for_item;
+      }
+    }
+    return Object.entries(map)
+      .map(([id, revenue]) => ({
+        id,
+        label: id.replace('item-', '').replace(/-/g, ' ').replace(/^\w/, c => c.toUpperCase()),
+        revenue,
+      }))
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+  }, [orders]);
+
+  const maxItemRevenue = itemRevenue[0]?.revenue ?? 1;
+
+  // Revenue by business
+  const businessRevenue = useMemo(() => {
+    const map: Record<string, number> = {};
+    for (const order of orders) {
+      map[order.business_id] = (map[order.business_id] ?? 0) + order.total_price;
+    }
+    return Object.entries(map)
+      .map(([id, revenue]) => {
+        const biz = getBusinessById(id);
+        return {
+          id,
+          name: biz?.company_name ?? id,
+          initials: (biz?.company_name ?? 'UN')
+            .split(' ')
+            .map(w => w[0])
+            .join('')
+            .slice(0, 2)
+            .toUpperCase(),
+          desc: biz?.desc?.slice(0, 30) ?? '',
+          revenue,
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue);
+  }, [orders]);
+
+  // Recent orders sorted by date
+  const recentOrders = useMemo(
+    () =>
+      [...orders]
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
+        .slice(0, 5),
+    [orders],
+  );
+
+  // Pending handshakes
+  const recentHandshakes = useMemo(
+    () =>
+      handshakes
+        .filter(h => h.status === 'pending')
+        .sort(
+          (a, b) =>
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
+        )
+        .slice(0, 4),
+    [handshakes],
+  );
 
   const renderOrder: ListRenderItem<Order> = ({ item }) => (
     <View style={{ marginBottom: Spacing.md }}>
-      <OrderCard order={item} role="supplier" onStatusUpdate={fetchOrders} />
+      <OrderCard order={item} role="supplier" onStatusUpdate={fetchData} />
     </View>
   );
 
@@ -233,6 +573,7 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
           description="Here's an overview of your supplier activity"
         />
 
+        {/* ── Stat cards ────────────────────────────────────────────────── */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -240,86 +581,191 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
         >
           <View style={{ width: STAT_CARD_WIDTH }}>
             <StatsCard
+              title="Total Revenue"
+              value={`$${totalRevenue.toLocaleString()}`}
+              description={`From ${orders.length} orders`}
+              icon={<DollarSign size={24} color="#10B981" />}
+              iconBg="#ECFDF5"
+              trend={
+                totalRevenue > 0
+                  ? { label: `${orders.length} orders`, direction: 'up' }
+                  : undefined
+              }
+            />
+          </View>
+          <View style={{ width: STAT_CARD_WIDTH }}>
+            <StatsCard
               title="Active Orders"
               value={activeOrdersCount}
               description="Orders to fulfill"
-              icon={<ShoppingCart size={24} color={Colors.primary} />}
+              icon={<ClipboardList size={24} color={Colors.primary} />}
             />
           </View>
           <View style={{ width: STAT_CARD_WIDTH }}>
             <StatsCard
-              title="Total Items"
+              title="Catalogue Items"
               value={itemsCount}
               description="In your catalogue"
-              icon={<Package size={24} color={Colors.primary} />}
-            />
-          </View>
-          <View style={{ width: STAT_CARD_WIDTH }}>
-            <StatsCard
-              title="Pending Requests"
-              value={pendingHandshakes}
-              description="Business requests"
-              icon={<Handshake size={24} color={Colors.primary} />}
+              icon={<Package size={24} color="#3B82F6" />}
+              iconBg="#EFF6FF"
             />
           </View>
         </ScrollView>
 
-        <Card>
-          <CardHeader
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
-            <View style={{ flex: 1 }}>
-              <CardTitle>Recent Orders</CardTitle>
-              <CardDescription>Orders from your customers</CardDescription>
-            </View>
-            <Button variant="ghost" size="sm" onPress={() => router.push('/(app)/orders')}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                <Text
-                  style={{
-                    fontFamily: 'PlusJakartaSans-SemiBold',
-                    fontSize: 13,
-                    color: Colors.foreground,
-                  }}
-                >
-                  View all
-                </Text>
-                <ArrowRight size={16} color={Colors.foreground} />
-              </View>
-            </Button>
-          </CardHeader>
-          {loading ? (
-            <CardContent style={{ gap: Spacing.md }}>
-              <Skeleton height={64} borderRadius={10} />
-              <Skeleton height={64} borderRadius={10} />
-              <Skeleton height={64} borderRadius={10} />
-            </CardContent>
-          ) : orders.length === 0 ? (
-            <CardContent>
-              <EmptyState
-                icon={<Package size={36} color={Colors.mutedForeground} />}
-                title="No orders yet"
-                description="Orders from businesses will appear here"
-              />
-            </CardContent>
-          ) : (
-            <FlatList
-              data={recent}
-              keyExtractor={item => item.id}
-              renderItem={renderOrder}
-              scrollEnabled={false}
-              nestedScrollEnabled
-              contentContainerStyle={{
-                paddingHorizontal: Spacing.lg,
-                paddingBottom: Spacing.lg,
-              }}
-            />
-          )}
-        </Card>
+        {/* ── Fulfillment pipeline + Top items by revenue ───────────────── */}
+        <TwoColumnRow style={{ marginTop: 0 }}>
+          <View style={{ flex: 1.15 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader title="Fulfillment status" />
+              <CardContent>
+                {loading ? (
+                  <Skeleton height={64} borderRadius={10} />
+                ) : (
+                  <OrderPipeline orders={orders} role="supplier" />
+                )}
+              </CardContent>
+            </Card>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader title="Top items by revenue" />
+              <CardContent>
+                {loading ? (
+                  <CardSkeleton rows={4} />
+                ) : itemRevenue.length === 0 ? (
+                  <Text
+                    style={{
+                      fontSize: 13,
+                      fontFamily: 'PlusJakartaSans',
+                      color: Colors.mutedForeground,
+                      textAlign: 'center',
+                      paddingVertical: 12,
+                    }}
+                  >
+                    No sales data yet
+                  </Text>
+                ) : (
+                  itemRevenue.map((item, i) => (
+                    <SpendCategoryBar
+                      key={item.id}
+                      label={item.label}
+                      value={item.revenue}
+                      maxValue={maxItemRevenue}
+                      color={ITEM_COLORS[i % ITEM_COLORS.length]}
+                    />
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </View>
+        </TwoColumnRow>
 
+        {/* ── Incoming orders (own row, full OrderCard with progress bar) ─ */}
+        <View style={{ marginTop: Spacing.lg }}>
+          <Card>
+            <SectionHeader
+              title="Incoming orders"
+              description="Orders from your customers"
+              actionLabel="View all"
+              onAction={() => router.push('/(app)/orders')}
+            />
+            {loading ? (
+              <CardContent style={{ gap: Spacing.md }}>
+                <Skeleton height={64} borderRadius={10} />
+                <Skeleton height={64} borderRadius={10} />
+                <Skeleton height={64} borderRadius={10} />
+              </CardContent>
+            ) : recentOrders.length === 0 ? (
+              <CardContent>
+                <EmptyState
+                  icon={<Package size={36} color={Colors.mutedForeground} />}
+                  title="No orders yet"
+                  description="Orders from businesses will appear here"
+                />
+              </CardContent>
+            ) : (
+              <FlatList
+                data={recentOrders}
+                keyExtractor={item => item.id}
+                renderItem={renderOrder}
+                scrollEnabled={false}
+                nestedScrollEnabled
+                contentContainerStyle={{
+                  paddingHorizontal: Spacing.lg,
+                  paddingBottom: Spacing.lg,
+                }}
+              />
+            )}
+          </Card>
+        </View>
+
+        {/* ── Connected businesses + Business requests (same row) ────────── */}
+        <TwoColumnRow>
+          <View style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader
+                title="Connected businesses"
+                actionLabel="View all"
+                onAction={() => router.push('/(app)/handshakes')}
+              />
+              <CardContent>
+                {loading ? (
+                  <CardSkeleton rows={3} />
+                ) : businessRevenue.length === 0 ? (
+                  <EmptyState
+                    icon={<Users size={30} color={Colors.mutedForeground} />}
+                    title="No businesses yet"
+                    description="Businesses will appear once connected"
+                  />
+                ) : (
+                  businessRevenue.map((biz, i) => (
+                    <View key={biz.id}>
+                      {i > 0 && <ListDivider />}
+                      <SupplierRankItem
+                        initials={biz.initials}
+                        name={biz.name}
+                        subtitle={`${biz.desc}…`}
+                        value={`$${biz.revenue.toLocaleString()}`}
+                      />
+                    </View>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader
+                title="Business requests"
+                actionLabel="Manage"
+                onAction={() => router.push('/(app)/handshakes')}
+              />
+              <CardContent>
+                {loading ? (
+                  <CardSkeleton rows={3} />
+                ) : recentHandshakes.length === 0 ? (
+                  <EmptyState
+                    icon={<Handshake size={30} color={Colors.mutedForeground} />}
+                    title="All clear"
+                    description="No pending requests"
+                  />
+                ) : (
+                  recentHandshakes.map((hs, i) => (
+                    <View key={hs.id}>
+                      {i > 0 && <ListDivider />}
+                      <HandshakeActivityItem
+                        handshake={hs}
+                        platformId={profile.id}
+                      />
+                    </View>
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </View>
+        </TwoColumnRow>
+
+        {/* ── Quick actions ──────────────────────────────────────────────── */}
         <View style={{ marginTop: Spacing.lg, gap: Spacing.md }}>
           <ActionCard
             icon={<Package size={24} color={Colors.primary} />}
@@ -327,14 +773,12 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
             description="Edit your catalogue"
             onPress={() => router.push('/(app)/items')}
           />
-
           <ActionCard
             icon={<ShoppingCart size={24} color={Colors.primary} />}
             title="View Orders"
             description="Manage incoming orders"
             onPress={() => router.push('/(app)/orders')}
           />
-
           <ActionCard
             icon={<Handshake size={24} color={Colors.primary} />}
             title="Manage Handshakes"
@@ -346,6 +790,10 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
     </ScrollView>
   );
 }
+
+// ═════════════════════════════════════════════════════════════════════════════
+// SCREEN ENTRY
+// ═════════════════════════════════════════════════════════════════════════════
 
 export default function DashboardScreen() {
   const profile = useAuthStore(s => s.profile);
