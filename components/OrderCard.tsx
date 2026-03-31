@@ -13,6 +13,7 @@ import Toast from 'react-native-toast-message';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/StatusBadge';
+import { OrderProgressBar } from '@/components/OrderProgressBar';
 import { ordersApi } from '@/services/api';
 import { Colors } from '@/constants/theme';
 import type { Order, OrderStatus } from '@/types';
@@ -164,6 +165,10 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
           </View>
         </CardHeader>
       </Pressable>
+      
+      <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
+        <OrderProgressBar status={order.status} />
+      </View>
 
       {open && !compact && (
         <CardContent>
