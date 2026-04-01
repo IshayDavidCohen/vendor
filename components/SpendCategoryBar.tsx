@@ -1,4 +1,5 @@
-import { View, Text } from 'react-native';
+import { useState, useCallback } from 'react';
+import { View, Text, type LayoutChangeEvent } from 'react-native';
 import { Colors } from '@/constants/theme';
 
 interface SpendCategoryBarProps {
@@ -16,7 +17,15 @@ export function SpendCategoryBar({
   color,
   currency = '$',
 }: SpendCategoryBarProps) {
-  const pct = maxValue > 0 ? Math.round((value / maxValue) * 100) : 0;
+  const [trackWidth, setTrackWidth] = useState(0);
+
+  const onTrackLayout = useCallback((e: LayoutChangeEvent) => {
+    setTrackWidth(e.nativeEvent.layout.width);
+  }, []);
+
+  const ratio = maxValue > 0 ? value / maxValue : 0;
+  // Compute fill width in absolute pixels (works on iOS and web)
+  const fillWidth = trackWidth > 0 ? Math.max(4, Math.round(trackWidth * ratio)) : 0;
 
   return (
     <View
@@ -39,6 +48,7 @@ export function SpendCategoryBar({
         {label}
       </Text>
       <View
+        onLayout={onTrackLayout}
         style={{
           flex: 1,
           height: 8,
@@ -47,14 +57,16 @@ export function SpendCategoryBar({
           overflow: 'hidden',
         }}
       >
-        <View
-          style={{
-            width: `${pct}%`,
-            height: '100%',
-            backgroundColor: color,
-            borderRadius: 4,
-          }}
-        />
+        {fillWidth > 0 && (
+          <View
+            style={{
+              width: fillWidth,
+              height: 8,
+              backgroundColor: color,
+              borderRadius: 4,
+            }}
+          />
+        )}
       </View>
       <Text
         style={{
