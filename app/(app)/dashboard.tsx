@@ -24,6 +24,7 @@ import { StatsCard } from '@/components/StatsCard';
 import { OrderCard } from '@/components/OrderCard';
 import { OrderPipeline } from '@/components/OrderPipeline';
 import { SpendCategoryBar } from '@/components/SpendCategoryBar';
+import { SpendTrendChart } from '@/components/SpendTrendChart';
 import { SupplierRankItem } from '@/components/SupplierRankItem';
 import { HandshakeActivityItem } from '@/components/HandshakeActivityItem';
 import { SectionHeader } from '@/components/SectionHeader';
@@ -38,7 +39,7 @@ import { Colors, Spacing } from '@/constants/theme';
 
 const STAT_CARD_WIDTH = 260;
 
-// ─── Category colors used in spend breakdown bars ────────────────────────────
+// ─── Category colors ─────────────────────────────────────────────────────────
 const CATEGORY_COLORS: Record<string, string> = {
   'cat-alcohol': '#7C3AED',
   'cat-meat': '#EF4444',
@@ -52,19 +53,28 @@ const CATEGORY_COLORS: Record<string, string> = {
 
 const ITEM_COLORS = ['#7C3AED', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#F97316'];
 
-// ─── Divider between list items ──────────────────────────────────────────────
+// ─── Mock monthly spend/revenue data (derived from orders in production) ─────
+const BUSINESS_MONTHLY_SPEND = [
+  { label: 'Sep', value: 3200 },
+  { label: 'Oct', value: 4100 },
+  { label: 'Nov', value: 5800 },
+  { label: 'Dec', value: 4500 },
+  { label: 'Jan', value: 8069 },
+];
+
+const SUPPLIER_MONTHLY_REVENUE = [
+  { label: 'Sep', value: 2800 },
+  { label: 'Oct', value: 3200 },
+  { label: 'Nov', value: 4600 },
+  { label: 'Dec', value: 3900 },
+  { label: 'Jan', value: 5640 },
+];
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 function ListDivider() {
-  return (
-    <View
-      style={{
-        height: 1,
-        backgroundColor: Colors.border,
-      }}
-    />
-  );
+  return <View style={{ height: 1, backgroundColor: Colors.border }} />;
 }
 
-// ─── Skeleton placeholder for card sections ──────────────────────────────────
 function CardSkeleton({ rows = 3 }: { rows?: number }) {
   return (
     <CardContent style={{ gap: Spacing.md }}>
@@ -75,7 +85,6 @@ function CardSkeleton({ rows = 3 }: { rows?: number }) {
   );
 }
 
-// ─── Two-column row with equal-height cards ──────────────────────────────────
 function TwoColumnRow({
   children,
   style,
@@ -125,7 +134,6 @@ function BusinessDashboard({ profile }: { profile: Business }) {
     fetchData();
   }, [fetchData]);
 
-  // ── Computed dashboard data ──────────────────────────────────────────────
   const activeOrders = useMemo(
     () => orders.filter(o => o.status !== 'arrived' && o.status !== 'rejected'),
     [orders],
@@ -140,7 +148,6 @@ function BusinessDashboard({ profile }: { profile: Business }) {
   const suppliersCount = profile.my_suppliers?.length ?? 0;
   const pendingHandshakes = profile.handshake_requests?.length ?? 0;
 
-  // Spend by supplier (across all orders)
   const supplierSpend = useMemo(() => {
     const map: Record<string, number> = {};
     for (const order of orders) {
@@ -165,15 +172,12 @@ function BusinessDashboard({ profile }: { profile: Business }) {
       .sort((a, b) => b.spend - a.spend);
   }, [orders]);
 
-  // Spend by category (from supplier categories of each order)
   const categorySpend = useMemo(() => {
     const map: Record<string, { label: string; value: number }> = {};
     for (const order of orders) {
       const sup = getSupplierById(order.supplier_id);
       const cat = sup?.categories?.[0] ?? 'other';
-      const label = cat
-        .replace('cat-', '')
-        .replace(/^\w/, c => c.toUpperCase());
+      const label = cat.replace('cat-', '').replace(/^\w/, c => c.toUpperCase());
       if (!map[cat]) map[cat] = { label, value: 0 };
       map[cat].value += order.total_price;
     }
@@ -184,27 +188,19 @@ function BusinessDashboard({ profile }: { profile: Business }) {
 
   const maxCategorySpend = categorySpend[0]?.value ?? 1;
 
-  // Recent orders (last 5, sorted newest first)
   const recentOrders = useMemo(
     () =>
       [...orders]
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5),
     [orders],
   );
 
-  // Pending handshakes for feed
   const recentHandshakes = useMemo(
     () =>
       handshakes
         .filter(h => h.status === 'pending')
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 4),
     [handshakes],
   );
@@ -266,9 +262,25 @@ function BusinessDashboard({ profile }: { profile: Business }) {
           </View>
         </ScrollView>
 
-        {/* ── Order pipeline + Spend by category ────────────────────────── */}
+        {/* ── Monthly spend chart + Order pipeline ──────────────────────── */}
         <TwoColumnRow style={{ marginTop: 0 }}>
           <View style={{ flex: 1.15 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader title="Monthly spend" />
+              <CardContent>
+                {loading ? (
+                  <Skeleton height={160} borderRadius={10} />
+                ) : (
+                  <SpendTrendChart
+                    data={BUSINESS_MONTHLY_SPEND}
+                    color={Colors.primary}
+                    currency="$"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </View>
+          <View style={{ flex: 1 }}>
             <Card style={{ flex: 1 }}>
               <SectionHeader title="Order pipeline" />
               <CardContent>
@@ -280,41 +292,43 @@ function BusinessDashboard({ profile }: { profile: Business }) {
               </CardContent>
             </Card>
           </View>
-          <View style={{ flex: 1 }}>
-            <Card style={{ flex: 1 }}>
-              <SectionHeader title="Spend by category" />
-              <CardContent>
-                {loading ? (
-                  <CardSkeleton rows={4} />
-                ) : categorySpend.length === 0 ? (
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: 'PlusJakartaSans',
-                      color: Colors.mutedForeground,
-                      textAlign: 'center',
-                      paddingVertical: 12,
-                    }}
-                  >
-                    No order data yet
-                  </Text>
-                ) : (
-                  categorySpend.map((cat, i) => (
-                    <SpendCategoryBar
-                      key={cat.key}
-                      label={cat.label}
-                      value={cat.value}
-                      maxValue={maxCategorySpend}
-                      color={CATEGORY_COLORS[cat.key] ?? ITEM_COLORS[i % ITEM_COLORS.length]}
-                    />
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </View>
         </TwoColumnRow>
 
-        {/* ── Recent orders (own row, full OrderCard with progress bar) ── */}
+        {/* ── Spend by category (full width) ────────────────────────────── */}
+        <View style={{ marginTop: Spacing.lg }}>
+          <Card>
+            <SectionHeader title="Spend by category" />
+            <CardContent>
+              {loading ? (
+                <CardSkeleton rows={4} />
+              ) : categorySpend.length === 0 ? (
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'PlusJakartaSans',
+                    color: Colors.mutedForeground,
+                    textAlign: 'center',
+                    paddingVertical: 12,
+                  }}
+                >
+                  No order data yet
+                </Text>
+              ) : (
+                categorySpend.map((cat, i) => (
+                  <SpendCategoryBar
+                    key={cat.key}
+                    label={cat.label}
+                    value={cat.value}
+                    maxValue={maxCategorySpend}
+                    color={CATEGORY_COLORS[cat.key] ?? ITEM_COLORS[i % ITEM_COLORS.length]}
+                  />
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </View>
+
+        {/* ── Recent orders (full OrderCard with progress bar) ───────────── */}
         <View style={{ marginTop: Spacing.lg }}>
           <Card>
             <SectionHeader
@@ -358,7 +372,7 @@ function BusinessDashboard({ profile }: { profile: Business }) {
           </Card>
         </View>
 
-        {/* ── Top suppliers + Handshake activity (same row) ─────────────── */}
+        {/* ── Top suppliers + Handshake activity ────────────────────────── */}
         <TwoColumnRow>
           <View style={{ flex: 1 }}>
             <Card style={{ flex: 1 }}>
@@ -475,7 +489,6 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
     fetchData();
   }, [fetchData]);
 
-  // ── Computed supplier data ───────────────────────────────────────────────
   const activeOrdersCount = profile.active_orders?.length ?? 0;
   const itemsCount = profile.items?.length ?? 0;
   const pendingHandshakes = profile.handshake_requests?.length ?? 0;
@@ -485,7 +498,6 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
     [orders],
   );
 
-  // Revenue by item
   const itemRevenue = useMemo(() => {
     const map: Record<string, number> = {};
     for (const order of orders) {
@@ -505,7 +517,6 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
 
   const maxItemRevenue = itemRevenue[0]?.revenue ?? 1;
 
-  // Revenue by business
   const businessRevenue = useMemo(() => {
     const map: Record<string, number> = {};
     for (const order of orders) {
@@ -530,27 +541,19 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
       .sort((a, b) => b.revenue - a.revenue);
   }, [orders]);
 
-  // Recent orders sorted by date
   const recentOrders = useMemo(
     () =>
       [...orders]
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 5),
     [orders],
   );
 
-  // Pending handshakes
   const recentHandshakes = useMemo(
     () =>
       handshakes
         .filter(h => h.status === 'pending')
-        .sort(
-          (a, b) =>
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
-        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
         .slice(0, 4),
     [handshakes],
   );
@@ -612,9 +615,25 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
           </View>
         </ScrollView>
 
-        {/* ── Fulfillment pipeline + Top items by revenue ───────────────── */}
+        {/* ── Revenue trend chart + Fulfillment status ──────────────────── */}
         <TwoColumnRow style={{ marginTop: 0 }}>
           <View style={{ flex: 1.15 }}>
+            <Card style={{ flex: 1 }}>
+              <SectionHeader title="Revenue trend" />
+              <CardContent>
+                {loading ? (
+                  <Skeleton height={160} borderRadius={10} />
+                ) : (
+                  <SpendTrendChart
+                    data={SUPPLIER_MONTHLY_REVENUE}
+                    color="#10B981"
+                    currency="$"
+                  />
+                )}
+              </CardContent>
+            </Card>
+          </View>
+          <View style={{ flex: 1 }}>
             <Card style={{ flex: 1 }}>
               <SectionHeader title="Fulfillment status" />
               <CardContent>
@@ -626,41 +645,43 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
               </CardContent>
             </Card>
           </View>
-          <View style={{ flex: 1 }}>
-            <Card style={{ flex: 1 }}>
-              <SectionHeader title="Top items by revenue" />
-              <CardContent>
-                {loading ? (
-                  <CardSkeleton rows={4} />
-                ) : itemRevenue.length === 0 ? (
-                  <Text
-                    style={{
-                      fontSize: 13,
-                      fontFamily: 'PlusJakartaSans',
-                      color: Colors.mutedForeground,
-                      textAlign: 'center',
-                      paddingVertical: 12,
-                    }}
-                  >
-                    No sales data yet
-                  </Text>
-                ) : (
-                  itemRevenue.map((item, i) => (
-                    <SpendCategoryBar
-                      key={item.id}
-                      label={item.label}
-                      value={item.revenue}
-                      maxValue={maxItemRevenue}
-                      color={ITEM_COLORS[i % ITEM_COLORS.length]}
-                    />
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </View>
         </TwoColumnRow>
 
-        {/* ── Incoming orders (own row, full OrderCard with progress bar) ─ */}
+        {/* ── Top items by revenue (full width) ─────────────────────────── */}
+        <View style={{ marginTop: Spacing.lg }}>
+          <Card>
+            <SectionHeader title="Top items by revenue" />
+            <CardContent>
+              {loading ? (
+                <CardSkeleton rows={4} />
+              ) : itemRevenue.length === 0 ? (
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'PlusJakartaSans',
+                    color: Colors.mutedForeground,
+                    textAlign: 'center',
+                    paddingVertical: 12,
+                  }}
+                >
+                  No sales data yet
+                </Text>
+              ) : (
+                itemRevenue.map((item, i) => (
+                  <SpendCategoryBar
+                    key={item.id}
+                    label={item.label}
+                    value={item.revenue}
+                    maxValue={maxItemRevenue}
+                    color={ITEM_COLORS[i % ITEM_COLORS.length]}
+                  />
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </View>
+
+        {/* ── Incoming orders (full OrderCard with progress bar) ─────────── */}
         <View style={{ marginTop: Spacing.lg }}>
           <Card>
             <SectionHeader
@@ -699,7 +720,7 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
           </Card>
         </View>
 
-        {/* ── Connected businesses + Business requests (same row) ────────── */}
+        {/* ── Connected businesses + Business requests ───────────────────── */}
         <TwoColumnRow>
           <View style={{ flex: 1 }}>
             <Card style={{ flex: 1 }}>

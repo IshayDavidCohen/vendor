@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Package } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
+import { useLocalSearchParams } from 'expo-router';
 
 import { useAuthStore } from '@/stores/auth.store';
 import { ordersApi } from '@/services/api';
@@ -10,6 +11,8 @@ import type { Order, OrderStatus, Business, Supplier } from '@/types';
 
 const IN_PROGRESS: OrderStatus[] = ['accepted', 'delivering'];
 const COMPLETED: OrderStatus[] = ['arrived', 'rejected'];
+const VALID_TABS = ['all', 'pending', 'in-progress', 'completed'];
+
 import { OrderCard } from '@/components/OrderCard';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
@@ -63,6 +66,31 @@ export default function OrdersScreen() {
   const role = useAuthStore(s => s.role);
   const platformId = useAuthStore(s => s.platformId);
   const profile = useAuthStore(s => s.profile) as Business | Supplier | null;
+
+  // ── Tab selection: param-driven + user-clickable, no useEffect ───────────
+  // useLocalSearchParams is reactive — it triggers a re-render when params change.
+  // We track the last-seen param to detect when the pipeline sends a new one,
+  // and let user clicks override via local state until the next param change.
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const lastParamRef = useRef(params.tab);
+  const [userTab, setUserTab] = useState<string>('all');
+
+  // Derive the active tab: if the param changed since last render, use it.
+  // Otherwise use whatever the user last clicked.
+  let activeTab = userTab;
+  if (params.tab !== lastParamRef.current) {
+    lastParamRef.current = params.tab;
+    const fromParam = params.tab && VALID_TABS.includes(params.tab) ? params.tab : 'all';
+    activeTab = fromParam;
+    // This is safe: we're setting state during render only when the input (param)
+    // has changed, which is the React-recommended pattern for derived state.
+    // It does not cause an extra commit — React batches it with the current render.
+    if (userTab !== fromParam) setUserTab(fromParam);
+  }
+
+  const handleTabChange = (tab: string) => {
+    setUserTab(tab);
+  };
 
   const [activeOrders, setActiveOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -166,7 +194,7 @@ export default function OrdersScreen() {
       <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}>
         <PageHeader title="Orders" description={subtitle} />
 
-        <Tabs defaultValue="all" style={{ flex: 1 }}>
+        <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange} style={{ flex: 1 }}>
           <TabsList scrollable style={{ marginBottom: 8 }}>
             <TabsTrigger value="all" style={{ flexGrow: 0, minWidth: 72 }}>
               {`All (${activeOrders.length})`}
