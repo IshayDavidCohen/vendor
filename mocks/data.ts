@@ -140,9 +140,9 @@ let suppliers: Supplier[] = [
     shipping_address: '123 Wine Boulevard, Napa Valley, CA 94558',
     categories: ['cat-alcohol'],
     approved_businesses: ['bus-demo'],
-    handshake_requests: [],
+    handshake_requests: ['hs-incoming-2'],
     items: ['item-wine-1', 'item-wine-2', 'item-wine-3', 'item-wine-4', 'item-wine-5'],
-    active_orders: ['ord-1'],
+    active_orders: ['ord-1', 'ord-5', 'ord-6', 'ord-7'],
     order_history: [],
     created_at: '2023-06-15T00:00:00Z',
     updated_at: '2024-01-15T00:00:00Z',
@@ -454,6 +454,16 @@ let handshakes: Handshake[] = [
     created_at: '2024-01-14T16:00:00Z',
     updated_at: '2024-01-14T16:00:00Z',
   },
+  {
+    id: 'hs-incoming-2',
+    sender_id: 'bus-bistro',
+    recipient_id: 'sup-premium-wines',
+    sender_type: 'business',
+    recipient_type: 'supplier',
+    status: 'pending',
+    created_at: '2024-01-16T09:00:00Z',
+    updated_at: '2024-01-16T09:00:00Z',
+  },
 ];
 
 // ===================
@@ -498,7 +508,7 @@ let activeOrders: Order[] = [
       { item_id: 'item-seafood-3', quantity: 8, base_price: 45.00, price_at_order: 45.00, total_price_for_item: 360.00 },
     ],
     total_price: 795.00,
-    status: 'pending',
+    status: 'arrived',
     created_at: '2024-01-16T09:00:00Z',
     updated_at: '2024-01-16T09:00:00Z',
   },
@@ -515,6 +525,44 @@ let activeOrders: Order[] = [
     status: 'arrived',
     created_at: '2024-01-10T08:00:00Z',
     updated_at: '2024-01-12T10:00:00Z',
+  },
+  {
+    id: 'ord-5',
+    supplier_id: 'sup-premium-wines',
+    business_id: 'bus-demo',
+    ordered_items: [
+      { item_id: 'item-meat-4', quantity: 12, base_price: 24.00, price_at_order: 24.00, total_price_for_item: 288.00 },
+      { item_id: 'item-meat-6', quantity: 8, base_price: 22.00, price_at_order: 22.00, total_price_for_item: 176.00 },
+    ],
+    total_price: 464.00,
+    status: 'pending',
+    created_at: '2024-01-17T08:00:00Z',
+    updated_at: '2024-01-17T08:00:00Z',
+  },
+  {
+    id: 'ord-6',
+    supplier_id: 'sup-premium-wines',
+    business_id: 'bus-bistro',
+    ordered_items: [
+      { item_id: 'item-meat-1', quantity: 10, base_price: 52.00, price_at_order: 52.00, total_price_for_item: 520.00 },
+    ],
+    total_price: 520.00,
+    status: 'accepted',
+    created_at: '2024-01-16T11:00:00Z',
+    updated_at: '2024-01-16T12:00:00Z',
+  },
+  {
+    id: 'ord-7',
+    supplier_id: 'sup-premium-wines',
+    business_id: 'bus-demo',
+    ordered_items: [
+      { item_id: 'item-meat-2', quantity: 3, base_price: 180.00, price_at_order: 180.00, total_price_for_item: 540.00 },
+      { item_id: 'item-meat-5', quantity: 6, base_price: 28.00, price_at_order: 28.00, total_price_for_item: 168.00 },
+    ],
+    total_price: 708.00,
+    status: 'arrived',
+    created_at: '2024-01-08T09:00:00Z',
+    updated_at: '2024-01-10T14:00:00Z',
   },
 ];
 
