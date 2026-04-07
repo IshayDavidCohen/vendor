@@ -1,20 +1,15 @@
 import { useState, useCallback } from 'react';
 import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
-import {
-  Package,
-  Clock,
-  ChevronDown,
-  Check,
-  X,
-  Truck,
-  Archive,
-} from 'lucide-react-native';
+import { Package, Clock, ChevronDown, Check, X, Truck, Archive, RefreshCw } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { StatusBadge } from '@/components/StatusBadge';
 import { OrderProgressBar } from '@/components/OrderProgressBar';
-import { ordersApi } from '@/services/api';
+import { ordersApi, itemsApi } from '@/services/api';
+import { useCartStore } from '@/stores/cart.store';
+import { useAuthStore } from '@/stores/auth.store';
+import { getItemById } from '@/mocks/data';
 import { Colors } from '@/constants/theme';
 import type { Order, OrderStatus } from '@/types';
 
@@ -32,6 +27,10 @@ interface OrderCardProps {
 export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  
+  const addItem = useCartStore(s => s.addItem);
+  const updateQuantity = useCartStore(s => s.updateQuantity);
+  const cartItems = useCartStore(s => s.items);
 
   const toggle = useCallback(() => {
     if (compact) return;
@@ -68,6 +67,34 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
       onStatusUpdate?.();
     } catch {
       Toast.show({ type: 'error', text1: 'An error occurred' });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+    const handleOrderAgain = async () => {
+    setLoading(true);
+    try {
+      let anyAdded = false;
+      for (const orderedItem of order.ordered_items) {
+        const { data: freshItem } = await itemsApi.get(orderedItem.item_id);
+        if (freshItem) {
+          const alreadyInCart = cartItems.find(c => c.item.id === freshItem.id);
+          if (alreadyInCart) {
+            updateQuantity(freshItem.id, orderedItem.quantity);
+          } else {
+            addItem(freshItem, order.supplier_id, order.supplier_id, orderedItem.quantity);
+          }
+          anyAdded = true;
+        }
+      }
+      if (anyAdded) {
+        Toast.show({ type: 'success', text1: 'Items added to cart' });
+      } else {
+        Toast.show({ type: 'error', text1: 'Could not fetch current items' });
+      }
+    } catch {
+      Toast.show({ type: 'error', text1: 'Failed to add items to cart' });
     } finally {
       setLoading(false);
     }
@@ -312,6 +339,52 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
             </View>
           )}
         </CardContent>
+        
+      )}
+
+      {/* Order Again Section */}
+      {!compact && role === 'business' && order.status === 'arrived' && (
+        <View
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            paddingHorizontal: 16,
+            paddingVertical: 10,
+            borderTopWidth: 1,
+            borderTopColor: Colors.border,
+            backgroundColor: Colors.muted,
+            borderBottomLeftRadius: 12,
+            borderBottomRightRadius: 12,
+            overflow: 'hidden',
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+            <Text style={{ fontSize: 12, fontFamily: 'PlusJakartaSans', color: Colors.mutedForeground }}>
+              Delivered {dateStr}
+            </Text>
+          </View>
+          <Pressable
+            onPress={handleOrderAgain}
+            disabled={loading}
+            style={({ pressed }) => ({
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 6,
+              backgroundColor: loading ? `${Colors.primary}99` : Colors.primary,
+              borderRadius: 20,
+              paddingVertical: 7,
+              paddingHorizontal: 16,
+              opacity: pressed ? 0.85 : 1,
+              ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+            })}
+          >
+            <RefreshCw size={13} color="#fff" />
+            <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans-SemiBold', color: '#fff' }}>
+              Order again
+            </Text>
+          </Pressable>
+        </View>
       )}
     </Card>
   );
