@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Users } from 'lucide-react-native';
+import { useLocalSearchParams } from 'expo-router';
 import Toast from 'react-native-toast-message';
 
 import { useAuthStore } from '@/stores/auth.store';
@@ -48,7 +49,7 @@ function HandshakeSkeleton() {
 export default function HandshakesScreen() {
   const role = useAuthStore(s => s.role);
   const platformId = useAuthStore(s => s.platformId);
-
+  const VALID_HS_TABS = ['all', 'incoming', 'outgoing', 'connected'];
   const [handshakes, setHandshakes] = useState<Handshake[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -105,6 +106,23 @@ export default function HandshakesScreen() {
     );
   }
 
+  // ── Tab selection: param-driven + user-clickable, no useEffect ──────────
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const lastParamRef = useRef<string | undefined>(undefined);
+  const [userHsTab, setUserHsTab] = useState<string>('all');
+
+  let activeHsTab = userHsTab;
+  if (params.tab !== lastParamRef.current) {
+    lastParamRef.current = params.tab;
+    const fromParam = params.tab && VALID_HS_TABS.includes(params.tab) ? params.tab : 'all';
+    activeHsTab = fromParam;
+    if (userHsTab !== fromParam) setUserHsTab(fromParam);
+  }
+
+  const handleHsTabChange = (tab: string) => {
+    setUserHsTab(tab);
+  };
+
   const renderHandshakeList = (list: Handshake[], emptyTitle: string, emptyDescription: string) => (
     <ScrollView
       showsVerticalScrollIndicator={false}
@@ -142,7 +160,7 @@ export default function HandshakesScreen() {
           description="Manage your connection requests with partners"
         />
 
-        <Tabs defaultValue="all" style={{ flex: 1 }}>
+        <Tabs defaultValue="all" value={activeHsTab} onValueChange={handleHsTabChange} style={{ flex: 1 }}>
           <TabsList scrollable style={{ marginBottom: 8 }}>
             <TabsTrigger value="all" style={{ flexGrow: 0, minWidth: 72 }}>
               {`All (${handshakes.length})`}

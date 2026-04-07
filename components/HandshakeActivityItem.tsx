@@ -1,5 +1,6 @@
-import { View, Text } from 'react-native';
+import { Pressable, View, Text, Platform } from 'react-native';
 import { ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { StatusBadge } from '@/components/StatusBadge';
 import { Colors } from '@/constants/theme';
 import type { Handshake } from '@/types';
@@ -13,6 +14,7 @@ export function HandshakeActivityItem({
   handshake,
   platformId,
 }: HandshakeActivityItemProps) {
+  const router = useRouter();
   const isOutgoing = handshake.sender_id === platformId;
   const partnerId = isOutgoing ? handshake.recipient_id : handshake.sender_id;
 
@@ -21,14 +23,27 @@ export function HandshakeActivityItem({
     day: 'numeric',
   });
 
+  // Map handshake direction/status to the correct handshakes.tsx tab
+  const handshakesTab = isOutgoing ? 'outgoing' : 'incoming';
+
+  const handlePress = () => {
+    router.push({
+      pathname: '/(app)/handshakes',
+      params: { tab: handshakesTab, _t: String(Date.now()) },
+    });
+  };
+
   return (
-    <View
-      style={{
+    <Pressable
+      onPress={handlePress}
+      style={({ pressed }) => ({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 10,
         paddingVertical: 8,
-      }}
+        opacity: pressed ? 0.7 : 1,
+        ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
+      })}
     >
       <View
         style={{
@@ -79,6 +94,6 @@ export function HandshakeActivityItem({
           {dateStr}
         </Text>
       </View>
-    </View>
+    </Pressable>
   );
 }
