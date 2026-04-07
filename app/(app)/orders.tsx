@@ -72,7 +72,7 @@ export default function OrdersScreen() {
   // We track the last-seen param to detect when the pipeline sends a new one,
   // and let user clicks override via local state until the next param change.
   const params = useLocalSearchParams<{ tab?: string }>();
-  const lastParamRef = useRef(params.tab);
+  const lastParamRef = useRef<string | undefined>(undefined);
   const [userTab, setUserTab] = useState<string>('all');
 
   // Derive the active tab: if the param changed since last render, use it.
