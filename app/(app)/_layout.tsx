@@ -18,9 +18,9 @@ import { Sidebar } from '@/components/Sidebar';
 import { Colors } from '@/constants/theme';
 
 function CartBadge({ onPress }: { onPress: () => void }) {
-  const getTotalItems = useCartStore(s => s.getTotalItems);
-  const cartCount = getTotalItems();
-
+  const items = useCartStore(s => s.items);
+  const cartCount = items.reduce((sum, i) => sum + i.quantity, 0);
+  
   return (
     <Pressable
       onPress={onPress}
