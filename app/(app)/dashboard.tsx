@@ -145,9 +145,15 @@ function BusinessDashboard({ profile }: { profile: Business }) {
     [activeOrders],
   );
 
-  const activeOrdersCount = profile.active_orders?.length ?? 0;
-  const suppliersCount = profile.my_suppliers?.length ?? 0;
-  const pendingHandshakes = profile.handshake_requests?.length ?? 0;
+  const activeOrdersCount = activeOrders.length ?? 0;
+  const suppliersCount = useMemo(
+    () => new Set(orders.map(o => o.supplier_id)).size,
+    [orders],
+  );
+  const pendingHandshakes = useMemo(
+    () => handshakes.filter(h => h.status === 'pending').length,
+    [handshakes],
+  );
 
   const supplierSpend = useMemo(() => {
     const map: Record<string, number> = {};
@@ -490,9 +496,13 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
     fetchData();
   }, [fetchData]);
 
-  const activeOrdersCount = profile.active_orders?.length ?? 0;
-  const itemsCount = profile.items?.length ?? 0;
-  const pendingHandshakes = profile.handshake_requests?.length ?? 0;
+  const itemsCount = profile.items?.length ?? 0; // TODO: needs to come from API when we have item management in place
+  const activeOrders = useMemo(
+    () => orders.filter(o => o.status !== 'arrived' && o.status !== 'rejected'),
+    [orders],
+  );
+  const activeOrdersCount = activeOrders.length;
+
 
   const totalRevenue = useMemo(
     () => orders.reduce((sum, o) => sum + o.total_price, 0),
