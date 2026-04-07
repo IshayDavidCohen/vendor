@@ -187,7 +187,7 @@ export function OrderProgressBar({ status, style }: OrderProgressBarProps) {
           const label = isRejected && idx === 1 ? 'Rejected' : step.label;
           const labelColor =
             isRejected && idx === 1
-              ? Colors.status.rejected
+              ? Colors.status.rejected.fg
               : isActive
                 ? Colors.foreground
                 : Colors.mutedForeground;
