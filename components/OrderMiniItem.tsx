@@ -30,7 +30,7 @@ export function OrderMiniItem({ order, supplierLabel, onPress }: OrderMiniItemPr
           width: 8,
           height: 8,
           borderRadius: 4,
-          backgroundColor: Colors.status[order.status] ?? Colors.primary,
+          backgroundColor: Colors.status[order.status]?.fg ?? Colors.primary,
         }}
       />
       <View style={{ flex: 1 }}>

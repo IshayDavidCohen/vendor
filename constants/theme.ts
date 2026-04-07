@@ -17,13 +17,25 @@ export const Colors = {
   input: '#E5E7EB',
   ring: '#7C3AED',
 
+  // bg: '#FEF3C7', text: '#92400E',
+  
   status: {
-    pending: '#7C3AED',
-    accepted: '#10B981',
-    rejected: '#EF4444',
-    delivering: '#3B82F6',
-    arrived: '#10B981',
-    acknowledged: '#6B7280',
+    pending:     { fg: '#7C3AED', bg: '#F3E8FF', bar: '#7C3AED' },
+    accepted:    { fg: '#059669', bg: '#D1FAE5', bar: '#10B981' },
+    delivering:  { fg: '#92400E', bg: '#FEF3C7', bar: '#F59E0B' },
+    arrived:     { fg: '#7C3AED', bg: '#D1FAE5', bar: '#7C3AED' },
+    rejected:    { fg: '#DC2626', bg: '#FEE2E2', bar: '#EF4444' },
+    acknowledged:{ fg: '#4B5563', bg: '#F3F4F6', bar: '#6B7280'},
+  },
+
+  statusBadge: {
+    pending: { bg: '#F3E8FF', text: '#7C3AED' },
+    accepted: { bg: '#D1FAE5', text: '#059669' },
+    rejected: { bg: '#FEE2E2', text: '#DC2626' },
+    delivering: { bg: '#FEF3C7', text: '#92400E' },
+    arrived: { bg: '#F3E8FF', text: '#7C3AED' },
+    acknowledged: { bg: '#F3F4F6', text: '#4B5563' },
+    // Old arrived version: arrived: { bg: '#D1FAE5', text: '#059669' },
   },
 } as const;
 

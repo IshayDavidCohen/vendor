@@ -50,7 +50,7 @@ export function HandshakeActivityItem({
           width: 30,
           height: 30,
           borderRadius: 15,
-          backgroundColor: isOutgoing ? `${Colors.primary}18` : '#D1FAE510',
+          backgroundColor: isOutgoing ? `${Colors.primary}18` : Colors.status.accepted.bg,
           alignItems: 'center',
           justifyContent: 'center',
         }}
@@ -58,7 +58,7 @@ export function HandshakeActivityItem({
         {isOutgoing ? (
           <ArrowUpRight size={14} color={Colors.primary} />
         ) : (
-          <ArrowDownLeft size={14} color={Colors.status.accepted} />
+          <ArrowDownLeft size={14} color={Colors.status.accepted.fg} />
         )}
       </View>
       <View style={{ flex: 1 }}>

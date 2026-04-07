@@ -175,8 +175,8 @@ function SupplierStoreHeader({
                     {isConnected ? (
                       <Badge
                         style={{
-                          backgroundColor: Colors.status.accepted,
-                          borderColor: Colors.status.accepted,
+                          backgroundColor: Colors.primary,
+                          borderColor: Colors.primary,
                           flexDirection: 'row',
                           alignItems: 'center',
                           gap: 6,
@@ -218,7 +218,7 @@ function SupplierStoreHeader({
                               fontSize: 13,
                               fontFamily: 'PlusJakartaSans',
                               color: handshakeMessage.includes('sent')
-                                ? Colors.status.accepted
+                                ? Colors.status.accepted.bg
                                 : Colors.destructive,
                             }}
                           >

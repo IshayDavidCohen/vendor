@@ -721,71 +721,71 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
           </Card>
         </View>
 
-        {/* ── Connected businesses + Business requests ───────────────────── */}
-        <TwoColumnRow>
-          <View style={{ flex: 1 }}>
-            <Card style={{ flex: 1 }}>
-              <SectionHeader
-                title="Connected businesses"
-                actionLabel="View all"
-                onAction={() => router.push('/(app)/handshakes')}
-              />
-              <CardContent>
-                {loading ? (
-                  <CardSkeleton rows={3} />
-                ) : businessRevenue.length === 0 ? (
-                  <EmptyState
-                    icon={<Users size={30} color={Colors.mutedForeground} />}
-                    title="No businesses yet"
-                    description="Businesses will appear once connected"
-                  />
-                ) : (
-                  businessRevenue.map((biz, i) => (
-                    <View key={biz.id}>
-                      {i > 0 && <ListDivider />}
-                      <SupplierRankItem
-                        initials={biz.initials}
-                        name={biz.name}
-                        subtitle={`${biz.desc}…`}
-                        value={`$${biz.revenue.toLocaleString()}`}
-                      />
-                    </View>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </View>
-          <View style={{ flex: 1 }}>
-            <Card style={{ flex: 1 }}>
-              <SectionHeader
-                title="Business requests"
-                actionLabel="Manage"
-                onAction={() => router.push('/(app)/handshakes')}
-              />
-              <CardContent>
-                {loading ? (
-                  <CardSkeleton rows={3} />
-                ) : recentHandshakes.length === 0 ? (
-                  <EmptyState
-                    icon={<Handshake size={30} color={Colors.mutedForeground} />}
-                    title="All clear"
-                    description="No pending requests"
-                  />
-                ) : (
-                  recentHandshakes.map((hs, i) => (
-                    <View key={hs.id}>
-                      {i > 0 && <ListDivider />}
-                      <HandshakeActivityItem
-                        handshake={hs}
-                        platformId={profile.id}
-                      />
-                    </View>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </View>
-        </TwoColumnRow>
+        {/* ── Connected businesses (full width) */}
+        <View style={{ marginTop: Spacing.lg }}>
+          <Card>
+            <SectionHeader
+              title="Connected businesses"
+              actionLabel="View all"
+              onAction={() => router.push('/(app)/handshakes')}
+            />
+            <CardContent>
+              {loading ? (
+                <CardSkeleton rows={3} />
+              ) : businessRevenue.length === 0 ? (
+                <EmptyState
+                  icon={<Users size={30} color={Colors.mutedForeground} />}
+                  title="No businesses yet"
+                  description="Businesses will appear once connected"
+                />
+              ) : (
+                businessRevenue.map((biz, i) => (
+                  <View key={biz.id}>
+                    {i > 0 && <ListDivider />}
+                    <SupplierRankItem
+                      initials={biz.initials}
+                      name={biz.name}
+                      subtitle={`${biz.desc}…`}
+                      value={`$${biz.revenue.toLocaleString()}`}
+                    />
+                  </View>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </View>
+
+        {/* ── Business requests (full width) */}
+        <View style={{ marginTop: Spacing.lg }}>
+          <Card>
+            <SectionHeader
+              title="Business requests"
+              actionLabel="Manage"
+              onAction={() => router.push('/(app)/handshakes')}
+            />
+            <CardContent>
+              {loading ? (
+                <CardSkeleton rows={3} />
+              ) : recentHandshakes.length === 0 ? (
+                <EmptyState
+                  icon={<Handshake size={30} color={Colors.mutedForeground} />}
+                  title="All clear"
+                  description="No pending requests"
+                />
+              ) : (
+                recentHandshakes.map((hs, i) => (
+                  <View key={hs.id}>
+                    {i > 0 && <ListDivider />}
+                    <HandshakeActivityItem
+                      handshake={hs}
+                      platformId={profile.id}
+                    />
+                  </View>
+                ))
+              )}
+            </CardContent>
+          </Card>
+        </View>
 
         {/* ── Quick actions ──────────────────────────────────────────────── */}
         <View style={{ marginTop: Spacing.lg, gap: Spacing.md }}>

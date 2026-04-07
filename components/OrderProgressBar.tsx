@@ -22,11 +22,7 @@ const DOT_SIZE = 10;
 const TRACK_HEIGHT = 4;
 
 function getBarColor(status: OrderStatus): string {
-  if (status === 'rejected') return Colors.status.rejected;
-  if (status === 'arrived') return Colors.status.arrived;
-  if (status === 'delivering') return Colors.status.delivering;
-  if (status === 'accepted') return Colors.status.accepted;
-  return Colors.status.pending;
+  return Colors.status[status]?.bar ?? Colors.status.pending.bar;
 }
 
 // ─── Component ───────────────────────────────────────────────────
