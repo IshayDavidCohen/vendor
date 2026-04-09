@@ -36,19 +36,30 @@ export function Modal({
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         style={{ flex: 1 }}
       >
-        <Pressable
-          onPress={onClose}
+        <View
           style={{
             flex: 1,
             backgroundColor: 'rgba(0,0,0,0.5)',
             justifyContent: 'center',
             alignItems: 'center',
             padding: 16,
-            ...(Platform.OS === 'web' ? { cursor: 'default' as any } : {}),
           }}
         >
+          {/* Invisible backdrop — tapping here closes the modal */}
           <Pressable
-            onPress={e => e.stopPropagation()}
+            onPress={onClose}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              ...(Platform.OS === 'web' ? { cursor: 'default' as any } : {}),
+            }}
+          />
+
+          {/* Content container — plain View, no responder interference */}
+          <View
             style={{
               backgroundColor: Colors.background,
               borderRadius: 12,
@@ -71,8 +82,8 @@ export function Modal({
             }}
           >
             {children}
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </KeyboardAvoidingView>
     </RNModal>
   );
