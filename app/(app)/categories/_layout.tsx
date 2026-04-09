@@ -8,6 +8,10 @@ export default function CategoriesLayout() {
         headerShown: false,
         contentStyle: { backgroundColor: Colors.background },
       }}
-    />
+    >
+      <Stack.Screen name="index" />
+      <Stack.Screen name="[categoryId]" />
+      <Stack.Screen name="supplier/[supplierId]" />
+    </Stack>
   );
 }

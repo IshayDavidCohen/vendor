@@ -18,7 +18,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
 
   return (
     <Pressable
-      onPress={() => router.push(`/(app)/supplier/${supplierId}`)}
+      onPress={() => router.push(`/(app)/categories/supplier/${supplierId}`)}
       style={({ pressed }) => ({
         opacity: pressed ? 0.9 : 1,
         ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
@@ -99,7 +99,7 @@ export function SupplierCard({ supplier }: SupplierCardProps) {
             </View>
           </View>
           <Pressable
-            onPress={() => router.push(`/(app)/supplier/${supplierId}`)}
+            onPress={() => router.push(`/(app)/categories/supplier/${supplierId}`)}
             style={{
               flexDirection: 'row',
               alignItems: 'center',
