@@ -117,7 +117,7 @@ export function ItemCard({
                 color: Colors.foreground,
               }}
             >
-              ${displayPrice.toFixed(2)}
+              {item.currency} {displayPrice.toFixed(2)}
             </Text>
             {hasCustomPrice && (
               <Text
@@ -128,7 +128,7 @@ export function ItemCard({
                   textDecorationLine: 'line-through',
                 }}
               >
-                ${item.base_price.toFixed(2)}
+                {item.currency} {item.base_price.toFixed(2)}
               </Text>
             )}
             <Text
