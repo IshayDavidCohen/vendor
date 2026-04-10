@@ -35,6 +35,8 @@ import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Colors } from '@/constants/theme';
 
+import { LockedOverlay, ENABLE_LOCKED_OVERLAY } from '@/components/LockedOverlay';
+
 const GAP = 12;
 const H_PADDING = 16;
 const BANNER_HEIGHT = 160;
@@ -359,9 +361,9 @@ export default function SupplierStorefrontScreen() {
     role === 'business' &&
     !!(profile as Business | null)?.my_suppliers?.includes(supplierId);
 
-  useLayoutEffect(() => {
-    navigation.setOptions({ headerShown: false });
-  }, [navigation]);
+  // useLayoutEffect(() => {
+  //   navigation.setOptions({ headerShown: false });
+  // }, [navigation]);
 
   useEffect(() => {
     if (!supplierId) {
@@ -560,92 +562,110 @@ export default function SupplierStorefrontScreen() {
     );
   }
 
+  // Show locked overlay if not connected and role is business
+   const shouldLock =
+    ENABLE_LOCKED_OVERLAY &&
+    !loading &&
+    !!supplier &&
+    role === 'business' &&
+    !isConnected;
+  
   return (
     <View style={{ flex: 1, backgroundColor: Colors.background, paddingTop: insets.top }}>
-      <FlatList<Item | number>
-        data={loading ? skeletonGrid : filteredItems}
-        keyExtractor={(item, idx) =>
-          typeof item === 'number' ? `sk-${idx}` : item.id
-        }
-        numColumns={2}
-        columnWrapperStyle={loading || filteredItems.length > 0 ? { gap: GAP } : undefined}
-        ListHeaderComponent={
-          <>
-            <SupplierStoreHeader
-              supplier={supplier}
-              loading={loading}
-              role={role}
-              isConnected={isConnected}
-              platformId={platformId}
-              handshakeLoading={handshakeLoading}
-              handshakeMessage={handshakeMessage}
-              onRequestHandshake={onRequestHandshake}
-              onBack={onBack}
-              search={search}
-              onSearchChange={setSearch}
-            />
-            {error && supplier && !loading ? (
-              <Text
-                style={{
-                  fontSize: 13,
-                  fontFamily: 'PlusJakartaSans',
-                  color: Colors.destructive,
-                  marginBottom: 12,
-                }}
-              >
-                {error}
-              </Text>
-            ) : null}
-          </>
-        }
-        renderItem={({ item }) => {
-          if (typeof item === 'number') {
+      <View style={{ flex: 1, position: 'relative' }}>
+        <FlatList<Item | number>
+          data={loading ? skeletonGrid : filteredItems}
+          keyExtractor={(item, idx) =>
+            typeof item === 'number' ? `sk-${idx}` : item.id
+          }
+          numColumns={2}
+          columnWrapperStyle={loading || filteredItems.length > 0 ? { gap: GAP } : undefined}
+          ListHeaderComponent={
+            <>
+              <SupplierStoreHeader
+                supplier={supplier}
+                loading={loading}
+                role={role}
+                isConnected={isConnected}
+                platformId={platformId}
+                handshakeLoading={handshakeLoading}
+                handshakeMessage={handshakeMessage}
+                onRequestHandshake={onRequestHandshake}
+                onBack={onBack}
+                search={search}
+                onSearchChange={setSearch}
+              />
+              {error && supplier && !loading ? (
+                <Text
+                  style={{
+                    fontSize: 13,
+                    fontFamily: 'PlusJakartaSans',
+                    color: Colors.destructive,
+                    marginBottom: 12,
+                  }}
+                >
+                  {error}
+                </Text>
+              ) : null}
+            </>
+          }
+          renderItem={({ item }) => {
+            if (typeof item === 'number') {
+              return (
+                <View style={{ width: itemColWidth }}>
+                  <ItemSkeletonCell width={itemColWidth} />
+                </View>
+              );
+            }
             return (
               <View style={{ width: itemColWidth }}>
-                <ItemSkeletonCell width={itemColWidth} />
+                <ItemCard
+                  item={item}
+                  businessId={platformId ?? undefined}
+                  onAddToCart={
+                    showCart
+                      ? it => addItem(it, supplierId!, supplier!.company_name)
+                      : undefined
+                  }
+                  cartQuantity={getCartQuantity(item.id)}
+                  onUpdateQuantity={
+                    showCart
+                      ? qty => updateQuantity(item.id, qty)
+                      : undefined
+                  }
+                  disabled={!showCart}
+                />
               </View>
             );
-          }
-          return (
-            <View style={{ width: itemColWidth }}>
-              <ItemCard
-                item={item}
-                businessId={platformId ?? undefined}
-                onAddToCart={
-                  showCart
-                    ? it => addItem(it, supplierId!, supplier!.company_name)
-                    : undefined
+          }}
+          ListEmptyComponent={
+            !loading ? (
+              <EmptyState
+                icon={<Search size={36} color={Colors.mutedForeground} />}
+                title={items.length === 0 ? 'No items yet' : 'No matches'}
+                description={
+                  items.length === 0
+                    ? 'This supplier has not listed any products.'
+                    : 'Try a different search term.'
                 }
-                cartQuantity={getCartQuantity(item.id)}
-                onUpdateQuantity={
-                  showCart
-                    ? qty => updateQuantity(item.id, qty)
-                    : undefined
-                }
-                disabled={!showCart}
               />
-            </View>
-          );
-        }}
-        ListEmptyComponent={
-          !loading ? (
-            <EmptyState
-              icon={<Search size={36} color={Colors.mutedForeground} />}
-              title={items.length === 0 ? 'No items yet' : 'No matches'}
-              description={
-                items.length === 0
-                  ? 'This supplier has not listed any products.'
-                  : 'Try a different search term.'
-              }
-            />
-          ) : null
-        }
-        contentContainerStyle={{
-          paddingHorizontal: H_PADDING,
-          paddingBottom: insets.bottom + 24,
-        }}
-        showsVerticalScrollIndicator={false}
-      />
+            ) : null
+          }
+          contentContainerStyle={{
+            paddingHorizontal: H_PADDING,
+            paddingBottom: insets.bottom + 24,
+          }}
+          showsVerticalScrollIndicator={false}
+        />
+        {shouldLock && (
+          <LockedOverlay
+            intensity={0.85}
+            onRequestHandshake={onRequestHandshake}
+            handshakeLoading={handshakeLoading}
+            handshakeSent={!!handshakeMessage}
+          />
+        )}
+      </View>
     </View>
   );
 }
