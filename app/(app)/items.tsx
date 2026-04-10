@@ -1,77 +1,40 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  View,
-  Text,
-  FlatList,
-  useWindowDimensions,
-  ScrollView,
-} from 'react-native';
+import { View, Text, FlatList, useWindowDimensions, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import * as ImagePicker from 'expo-image-picker';
 import { Image } from 'expo-image';
-import {
-  Package,
-  Plus,
-  Search,
-  Edit2,
-  Trash2,
-  DollarSign,
-} from 'lucide-react-native';
+import { Package, Plus, Search, Edit2, Trash2, DollarSign, } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 
 import { pickImage } from '@/utils/pickImage';
 import { confirm } from '@/utils/confirm';
+
 import { useAuthStore } from '@/stores/auth.store';
 import { supplierApi, itemsApi, categoriesApi } from '@/services/api';
 import type { Item, Category, Supplier } from '@/types';
+
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
 import { Card, CardContent } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
 import { Input, TextArea } from '@/components/ui/Input';
-import {
-  Modal,
-  ModalHeader,
-  ModalContent,
-  ModalFooter,
-} from '@/components/ui/Modal';
+import { Modal, ModalHeader, ModalContent, ModalFooter } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
 import { Badge } from '@/components/ui/Badge';
 import { Skeleton } from '@/components/ui/Skeleton';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
+import { InventoryList } from '@/components/InventoryList';
+
+
 import { Colors } from '@/constants/theme';
+import { CURRENCY_OPTIONS } from '@/constants/currencies';
 
 
 /* REMOVE AFTER DEV */
 /* This pulls unit from mock data */
-import { UNIT_OPTIONS } from '@/mocks/data'; 
+// import { UNIT_OPTIONS } from '@/constants/units';
+
+import { UNIT_GROUPS, UNIT_LABEL_MAP } from '@/constants/units';
 /* END REMOVE AFTER DEV */
-
-interface ItemFormData {
-  name: string;
-  category: string;
-  image: string;
-  desc: string;
-  base_price: string;
-  unit: string;
-  currency: string;
-}
-
-const defaultFormData: ItemFormData = {
-  name: '',
-  category: '',
-  image: '',
-  desc: '',
-  base_price: '',
-  unit: 'unit',
-  currency: 'USD',
-};
-
-const CURRENCY_OPTIONS = [
-  { label: 'USD', value: 'USD' },
-  { label: 'EUR', value: 'EUR' },
-  { label: 'GBP', value: 'GBP' },
-  { label: 'ILS', value: 'ILS' },
-];
 
 function ItemSkeletonTile({ width }: { width: number }) {
   return (
@@ -121,12 +84,14 @@ export default function ItemsScreen() {
   const [saving, setSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
+  const [activeTab, setActiveTab] = useState('catalogue');
+
   const categoryOptions = useMemo(
     () => categories.map(c => ({ label: c.title, value: c.oid })),
     [categories],
   );
 
-  type ItemDraft = {
+type ItemDraft = {
   id?: string;
   name: string;
   category: string;
@@ -214,9 +179,8 @@ const openModal = (item?: Item) => {
   } else {
     setDraftItem(emptyDraft);
   }
-
   setModalOpen(true);
-  };
+};
 
 
 const closeModal = () => {
@@ -354,54 +318,13 @@ const closeModal = () => {
     ? `Manage catalogue for ${supplier.company_name}`
     : 'Manage your product catalogue';
 
-  const ListHeader = (
-    <View style={{ gap: 16, marginBottom: 12 }}>
-      <PageHeader title="My Items" description={catalogueDescription}>
-        <Button onPress={() => openModal()}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Plus size={18} color={Colors.primaryForeground} />
-            <Text
-              style={{
-                color: Colors.primaryForeground,
-                fontFamily: 'PlusJakartaSans-SemiBold',
-                fontSize: 14,
-              }}
-            >
-              Add Item
-            </Text>
-          </View>
-        </Button>
-      </PageHeader>
-
-      <View style={{ position: 'relative' }}>
-        <View
-          style={{
-            position: 'absolute',
-            left: 12,
-            top: 0,
-            bottom: 0,
-            justifyContent: 'center',
-            zIndex: 1,
-            pointerEvents: 'none',
-          }}
-        >
-          <Search size={18} color={Colors.mutedForeground} />
-        </View>
-        <Input
-          placeholder="Search items..."
-          value={search}
-          onChangeText={setSearch}
-          style={{ paddingLeft: 40 }}
-        />
-      </View>
-    </View>
-  );
 
   const renderItem = ({ item }: { item: Item }) => {
     const customCount = Object.keys(item.custom_prices ?? {}).length;
     return (
-      <View style={{ width: tileW }}>
-        <Card style={{ overflow: 'hidden' }}>
+      <View style={{ width: tileW, flex: 1}}>
+        <Card style={{ overflow: 'hidden', flex: 1 }}>
+          {/* ── Image + action buttons ── */}
           <View style={{ position: 'relative' }}>
             <View
               style={{
@@ -422,6 +345,30 @@ const closeModal = () => {
                 <Package size={48} color={Colors.mutedForeground} />
               )}
             </View>
+
+            {/* Out of stock overlay */}
+            {item.out_of_stock && (
+              <View
+                style={{
+                  position: 'absolute',
+                  top: 0, left: 0, right: 0, bottom: 0,
+                  backgroundColor: 'rgba(0,0,0,0.45)',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Text style={{
+                  color: '#fff',
+                  fontFamily: 'PlusJakartaSans-Bold',
+                  fontSize: 13,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}>
+                  Out of Stock
+                </Text>
+              </View>
+            )}
+
             <View
               style={{
                 position: 'absolute',
@@ -445,7 +392,10 @@ const closeModal = () => {
               </Button>
             </View>
           </View>
-          <CardContent style={{ padding: 12 }}>
+
+          {/* ── Content ── */}
+          <CardContent style={{ padding: 12, gap: 6 }}>
+            {/* Name */}
             <Text
               style={{
                 fontSize: 15,
@@ -456,53 +406,58 @@ const closeModal = () => {
             >
               {item.name}
             </Text>
+
+            {/* Description */}
             <Text
               style={{
                 fontSize: 12,
                 fontFamily: 'PlusJakartaSans',
                 color: Colors.mutedForeground,
-                marginTop: 4,
               }}
               numberOfLines={2}
             >
               {item.desc || 'No description'}
             </Text>
-            <View
-              style={{
-                marginTop: 10,
-                flexDirection: 'row',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: 8,
-              }}
-            >
-              <View>
-                <Text
-                  style={{
-                    fontSize: 16,
-                    fontFamily: 'PlusJakartaSans-Bold',
-                    color: Colors.primary,
-                  }}
-                >
-                  {item.currency} {item.base_price.toFixed(2)}
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    fontFamily: 'PlusJakartaSans',
-                    color: Colors.mutedForeground,
-                  }}
-                >
-                  per {item.unit}
-                </Text>
-              </View>
+
+            {/* Price row — just price and per-unit, no badge here */}
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 4, marginTop: 4 }}>
+              <Text
+                style={{
+                  fontSize: 16,
+                  fontFamily: 'PlusJakartaSans-Bold',
+                  color: Colors.primary,
+                }}
+              >
+                {item.currency} {item.base_price.toFixed(2)}
+              </Text>
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontFamily: 'PlusJakartaSans',
+                  color: Colors.mutedForeground,
+                }}
+              >
+                / {UNIT_LABEL_MAP[item.unit] ?? item.unit}
+              </Text>
+            </View>
+
+            {/* Badge row — stock + custom pricing, always below price */}
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+              <Badge
+                variant={item.out_of_stock ? 'destructive' : item.stock_quantity <= 10 ? 'warning' : 'secondary'}
+              >
+                {item.out_of_stock
+                  ? 'Out of stock'
+                  : `${item.stock_quantity} in stock`}
+              </Badge>
+
               {customCount > 0 && (
                 <Badge variant="secondary">
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <DollarSign size={12} color={Colors.secondaryForeground} />
+                    <DollarSign size={10} color={Colors.secondaryForeground} />
                     <Text
                       style={{
-                        fontSize: 12,
+                        fontSize: 11,
                         fontFamily: 'PlusJakartaSans-Medium',
                         color: Colors.secondaryForeground,
                       }}
@@ -524,84 +479,113 @@ const closeModal = () => {
       style={{ flex: 1, backgroundColor: Colors.background }}
       edges={['bottom']}
     >
-      {loading ? (
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: horizontalPad,
-            paddingTop: 8,
-            paddingBottom: 32,
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {ListHeader}
-          <View
-            style={{
-              flexDirection: 'row',
-              flexWrap: 'wrap',
-              gap: colGap,
-            }}
-          >
-            {[0, 1, 2, 3, 4, 5].map(i => (
-              <ItemSkeletonTile key={i} width={tileW} />
-            ))}
-          </View>
-        </ScrollView>
-      ) : filteredItems.length === 0 ? (
-        <ScrollView
-          contentContainerStyle={{
-            paddingHorizontal: horizontalPad,
-            paddingTop: 8,
-            paddingBottom: 32,
-            flexGrow: 1,
-          }}
-          showsVerticalScrollIndicator={false}
-        >
-          {ListHeader}
-          <EmptyState
-            icon={<Package size={40} color={Colors.mutedForeground} />}
-            title={search.trim() ? 'No items found' : 'No items yet'}
-            description={
-              search.trim()
-                ? 'Try a different search term'
-                : 'Add your first item to start selling'
-            }
-            action={
-              !search.trim() ? (
-                <Button onPress={() => openModal()}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Plus size={18} color={Colors.primaryForeground} />
-                    <Text
-                      style={{
-                        color: Colors.primaryForeground,
-                        fontFamily: 'PlusJakartaSans-SemiBold',
-                        fontSize: 14,
-                      }}
-                    >
-                      Add Item
-                    </Text>
-                  </View>
-                </Button>
-              ) : undefined
-            }
-          />
-        </ScrollView>
-      ) : (
-        <FlatList
-          data={filteredItems}
-          keyExtractor={it => it.id}
-          numColumns={2}
-          columnWrapperStyle={{ gap: colGap, marginBottom: colGap }}
-          contentContainerStyle={{
-            paddingHorizontal: horizontalPad,
-            paddingTop: 8,
-            paddingBottom: 32,
-          }}
-          ListHeaderComponent={ListHeader}
-          renderItem={renderItem}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        />
-      )}
+      <View style={{ flex: 1, paddingHorizontal: horizontalPad, paddingTop: 8 }}>
+        <PageHeader title="My Items" description={catalogueDescription}>
+          <Button onPress={() => openModal()}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Plus size={18} color={Colors.primaryForeground} />
+              <Text
+                style={{
+                  color: Colors.primaryForeground,
+                  fontFamily: 'PlusJakartaSans-SemiBold',
+                  fontSize: 14,
+                }}
+              >
+                Add Item
+              </Text>
+            </View>
+          </Button>
+        </PageHeader>
+
+        <Tabs defaultValue="catalogue" value={activeTab} onValueChange={setActiveTab} style={{ flex: 1 }}>
+          <TabsList style={{ marginBottom: 12 }}>
+            <TabsTrigger value="catalogue" style={{ flex: 1 }}>
+              {`Catalogue (${items.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="inventory" style={{ flex: 1 }}>
+              Inventory
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="catalogue" style={{ flex: 1 }}>
+            <View style={{ position: 'relative', marginBottom: 12 }}>
+              <View
+                style={{
+                  position: 'absolute',
+                  left: 12,
+                  top: 0,
+                  bottom: 0,
+                  justifyContent: 'center',
+                  zIndex: 1,
+                  pointerEvents: 'none',
+                }}
+              >
+                <Search size={18} color={Colors.mutedForeground} />
+              </View>
+              <Input
+                placeholder="Search items..."
+                value={search}
+                onChangeText={setSearch}
+                style={{ paddingLeft: 40 }}
+              />
+            </View>
+
+            {loading ? (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: colGap }}>
+                {[0, 1, 2, 3, 4, 5].map(i => (
+                  <ItemSkeletonTile key={i} width={tileW} />
+                ))}
+              </View>
+            ) : filteredItems.length === 0 ? (
+              <EmptyState
+                icon={<Package size={40} color={Colors.mutedForeground} />}
+                title={search.trim() ? 'No items found' : 'No items yet'}
+                description={
+                  search.trim()
+                    ? 'Try a different search term'
+                    : 'Add your first item to start selling'
+                }
+                action={
+                  !search.trim() ? (
+                    <Button onPress={() => openModal()}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Plus size={18} color={Colors.primaryForeground} />
+                        <Text
+                          style={{
+                            color: Colors.primaryForeground,
+                            fontFamily: 'PlusJakartaSans-SemiBold',
+                            fontSize: 14,
+                          }}
+                        >
+                          Add Item
+                        </Text>
+                      </View>
+                    </Button>
+                  ) : undefined
+                }
+              />
+            ) : (
+              <FlatList
+                data={filteredItems}
+                keyExtractor={it => it.id}
+                numColumns={2}
+                columnWrapperStyle={{ gap: colGap, marginBottom: colGap }}
+                renderItem={renderItem}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+              />
+            )}
+          </TabsContent>
+
+          <TabsContent value="inventory" style={{ flex: 1 }}>
+            <InventoryList
+              items={items}
+              loading={loading}
+              onItemUpdated={fetchItems}
+            />
+          </TabsContent>
+        </Tabs>
+      </View>
 
       <Modal visible={modalOpen} onClose={closeModal} animationType="slide">
         <ModalHeader
@@ -638,11 +622,9 @@ const closeModal = () => {
               >
                 Product Image
               </Text>
-
               <Button variant="outline" onPress={handlePickImage}>
                 Browse Picture
               </Button>
-
               {draftItem.image ? (
                 <View
                   style={{
@@ -682,7 +664,7 @@ const closeModal = () => {
             <Select
               label="Unit"
               placeholder="Select a unit"
-              options={UNIT_OPTIONS}
+              groups={UNIT_GROUPS}
               value={draftItem.unit}
               onValueChange={v => setDraftItem(p => ({ ...p, unit: v }))}
             />

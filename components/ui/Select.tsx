@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   Platform,
   View,
@@ -16,8 +16,18 @@ interface SelectOption {
   value: string;
 }
 
-interface SelectProps {
+interface SelectGroup {
+  heading: string;
   options: SelectOption[];
+}
+
+type ListItem =
+  | { type: 'heading'; heading: string }
+  | { type: 'option'; label: string; value: string };
+
+interface SelectProps {
+  options?: SelectOption[];
+  groups?: SelectGroup[];
   value?: string;
   onValueChange: (value: string) => void;
   placeholder?: string;
@@ -27,6 +37,7 @@ interface SelectProps {
 
 export function Select({
   options,
+  groups,
   value,
   onValueChange,
   placeholder = 'Select...',
@@ -34,7 +45,25 @@ export function Select({
   style,
 }: SelectProps) {
   const [open, setOpen] = useState(false);
-  const selected = options.find(o => o.value === value);
+
+  // ── Build unified list from either groups or flat options ──
+  const listData: ListItem[] = useMemo(() => {
+    if (groups) {
+      return groups.flatMap(g => [
+        { type: 'heading' as const, heading: g.heading },
+        ...g.options.map(o => ({ type: 'option' as const, ...o })),
+      ]);
+    }
+    return (options ?? []).map(o => ({ type: 'option' as const, ...o }));
+  }, [groups, options]);
+
+  // ── Derive selected label from whichever source is active ──
+  const allOptions = useMemo(() => {
+    if (groups) return groups.flatMap(g => g.options);
+    return options ?? [];
+  }, [groups, options]);
+
+  const selected = allOptions.find(o => o.value === value);
 
   return (
     <View style={style}>
@@ -92,10 +121,31 @@ export function Select({
             {label || 'Select an option'}
           </Text>
           <FlatList
-            data={options}
-            keyExtractor={item => item.value}
+            data={listData}
+            keyExtractor={(item, index) =>
+              item.type === 'heading' ? `heading-${index}` : item.value
+            }
             style={{ maxHeight: 300 }}
             renderItem={({ item }) => {
+              if (item.type === 'heading') {
+                return (
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontFamily: 'PlusJakartaSans-SemiBold',
+                      color: Colors.mutedForeground,
+                      textTransform: 'uppercase',
+                      letterSpacing: 0.8,
+                      paddingTop: 14,
+                      paddingBottom: 6,
+                      paddingHorizontal: 8,
+                    }}
+                  >
+                    {item.heading}
+                  </Text>
+                );
+              }
+
               const isSelected = item.value === value;
               return (
                 <Pressable
@@ -127,9 +177,7 @@ export function Select({
                   >
                     {item.label}
                   </Text>
-                  {isSelected && (
-                    <Check size={16} color={Colors.primary} />
-                  )}
+                  {isSelected && <Check size={16} color={Colors.primary} />}
                 </Pressable>
               );
             }}

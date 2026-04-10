@@ -1,7 +1,7 @@
 import { View, Text, type ViewStyle, type TextStyle } from 'react-native';
 import { Colors } from '@/constants/theme';
 
-export type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
+export type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline' | 'warning';
 
 interface BadgeProps {
   variant?: BadgeVariant;
@@ -26,6 +26,10 @@ const variantStyles: Record<BadgeVariant, { bg: ViewStyle; text: TextStyle }> = 
   outline: {
     bg: { backgroundColor: 'transparent', borderColor: Colors.border },
     text: { color: Colors.foreground },
+  },
+  warning: {
+    bg: { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' },
+    text: { color: '#92400E' },
   },
 };
 

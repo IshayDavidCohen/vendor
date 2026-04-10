@@ -90,16 +90,7 @@ export interface SupplierCarouselItem {
 // ========================
 // Item
 // ========================
-export interface ItemCreateData {
-  supplier_id: string;
-  name: string;
-  category: string;
-  image: string;
-  desc: string;
-  base_price: number;
-  unit: string;
-  currency: string;
-}
+export type StockStatus = 'in_stock' | 'out_of_stock' | 'low_stock';
 
 export interface Item {
   id: string;
@@ -112,8 +103,23 @@ export interface Item {
   unit: string;
   currency: string;
   custom_prices: Record<string, number>;
+  stock_quantity: number;
+  out_of_stock: boolean;
   created_at: string;
   updated_at: string;
+}
+
+export interface ItemCreateData {
+  supplier_id: string;
+  name: string;
+  category: string;
+  image: string;
+  desc: string;
+  base_price: number;
+  unit: string;
+  currency: string;
+  stock_quantity?: number;
+  out_of_stock?: boolean;
 }
 
 // ========================

@@ -1,4 +1,5 @@
 import { Platform, View, Text, Pressable } from 'react-native';
+import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
 import { Package, Minus, Plus } from 'lucide-react-native';
 import { Badge } from '@/components/ui/Badge';
@@ -27,6 +28,10 @@ export function ItemCard({
   const customPrice = businessId ? item.custom_prices?.[businessId] : undefined;
   const displayPrice = customPrice ?? item.base_price;
   const hasCustomPrice = customPrice !== undefined && customPrice !== item.base_price;
+  const isOutOfStock = item.out_of_stock;
+
+  // Business can't add out-of-stock items to cart
+  const canAddToCart = onAddToCart && !disabled && !isOutOfStock;
 
   return (
     <Pressable
@@ -59,6 +64,7 @@ export function ItemCard({
           }),
         }}
       >
+        {/* Image */}
         <View
           style={{
             height: 120,
@@ -95,14 +101,51 @@ export function ItemCard({
               </Badge>
             </View>
           )}
+
+          {/* Out of stock overlay */}
+          {isOutOfStock && (
+            <BlurView
+              intensity={40}
+              tint="default"
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <View style={{
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                paddingHorizontal: 12,
+                paddingVertical: 4,
+                borderRadius: 6,
+              }}>
+                <Text
+                  style={{
+                    color: '#fff',
+                    fontFamily: 'PlusJakartaSans-Bold',
+                    fontSize: 13,
+                    textTransform: 'uppercase',
+                    letterSpacing: 0.5,
+                  }}
+                >
+                  Out of Stock
+                </Text>
+              </View>
+            </BlurView>
+          )}
         </View>
 
+        {/* Content */}
         <View style={{ padding: 10, gap: 4 }}>
           <Text
             style={{
               fontSize: 14,
               fontFamily: 'PlusJakartaSans-SemiBold',
-              color: Colors.foreground,
+              color: isOutOfStock ? Colors.mutedForeground : Colors.foreground,
             }}
             numberOfLines={1}
           >
@@ -114,7 +157,7 @@ export function ItemCard({
               style={{
                 fontSize: 15,
                 fontFamily: 'PlusJakartaSans-Bold',
-                color: Colors.foreground,
+                color: isOutOfStock ? Colors.mutedForeground : Colors.foreground,
               }}
             >
               {item.currency} {displayPrice.toFixed(2)}
@@ -142,7 +185,8 @@ export function ItemCard({
             </Text>
           </View>
 
-          {onAddToCart && !disabled && (
+          {/* Add to cart / quantity controls — hidden when out of stock */}
+          {canAddToCart && (
             <View style={{ marginTop: 6 }}>
               {cartQuantity === 0 ? (
                 <Pressable
@@ -216,6 +260,21 @@ export function ItemCard({
                 </View>
               )}
             </View>
+          )}
+
+          {/* Out of stock message for business users trying to order */}
+          {onAddToCart && !disabled && isOutOfStock && (
+            <Text
+              style={{
+                fontSize: 12,
+                fontFamily: 'PlusJakartaSans-Medium',
+                color: Colors.destructive,
+                marginTop: 6,
+                textAlign: 'center',
+              }}
+            >
+              Currently unavailable
+            </Text>
           )}
         </View>
       </View>

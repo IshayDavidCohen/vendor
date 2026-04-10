@@ -189,6 +189,8 @@ export const supplierApi = {
         ...data,
         id: newId,
         custom_prices: {},
+        stock_quantity: data.stock_quantity ?? 0,
+        out_of_stock: data.out_of_stock ?? false,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       });
@@ -295,6 +297,21 @@ export const itemsApi = {
       `/api/v1/items/${itemId}/custom-price/${businessId}`,
       { method: 'DELETE' },
     );
+  },
+
+  updateInventory: async (
+    itemId: string,
+    data: { stock_quantity?: number; out_of_stock?: boolean },
+  ): Promise<ApiResponse<{ success: boolean }>> => {
+    if (USE_MOCK_DATA) {
+      await delay(200);
+      updateItem(itemId, data as Partial<Item>);
+      return { data: { success: true } };
+    }
+    return apiRequest<{ success: boolean }>(`/api/v1/items/${itemId}/inventory`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    });
   },
 };
 
