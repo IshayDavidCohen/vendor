@@ -9,8 +9,8 @@ import {
   Package,
   ClipboardList,
   Store,
+  LucideIcon
 } from 'lucide-react-native';
-import type { LucideIcon } from 'lucide-react-native';
 import { useAuthStore } from '@/stores/auth.store';
 import { Colors } from '@/constants/theme';
 

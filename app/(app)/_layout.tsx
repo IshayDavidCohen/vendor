@@ -71,6 +71,13 @@ export default function AppLayout() {
       <View style={{ flex: 1, flexDirection: 'row' }}>
         {isWideWeb && <Sidebar />}
         <View style={{ flex: 1 }}>
+
+          {isWideWeb && role === 'business' && (
+            <View style={{ position: 'absolute', top: 16, right: 24, zIndex: 10 }}>
+              <CartBadge onPress={() => setCartVisible(true)} />
+            </View>
+          )}
+
           <Tabs
             screenOptions={{
               headerStyle: { backgroundColor: Colors.background },
