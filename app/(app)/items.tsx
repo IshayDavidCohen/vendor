@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 
+import { pickImage } from '@/utils/pickImage';
 import { confirm } from '@/utils/confirm';
 import { useAuthStore } from '@/stores/auth.store';
 import { supplierApi, itemsApi, categoriesApi } from '@/services/api';
@@ -150,38 +151,12 @@ const emptyDraft: ItemDraft = {
 
 const [draftItem, setDraftItem] = useState<ItemDraft>(emptyDraft);
 
-  const pickImage = async () => {
-    try {
-      const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-      if (!permission.granted) {
-        Toast.show({
-          type: 'error',
-          text1: 'Permission required',
-          text2: 'Please allow access to your photo library',
-        });
-        return;
+  const handlePickImage = async () => {
+      const uri = await pickImage();
+      if (uri) {
+        setDraftItem(prev => ({ ...prev, image: uri }));
       }
-
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ['images'],
-        allowsEditing: true,
-        quality: 0.8,
-      });
-
-      if (result.canceled) return;
-
-      const asset = result.assets?.[0];
-      if (!asset?.uri) return;
-
-      setDraftItem(prev => ({
-          ...prev,
-          image: asset.uri,
-        }));
-    } catch {
-      Toast.show({ type: 'error', text1: 'Failed to pick image' });
-    }
-  };
+    };
 
   const fetchItems = useCallback(async () => {
     if (!platformId || role !== 'supplier') {
@@ -664,7 +639,7 @@ const closeModal = () => {
                 Product Image
               </Text>
 
-              <Button variant="outline" onPress={pickImage}>
+              <Button variant="outline" onPress={handlePickImage}>
                 Browse Picture
               </Button>
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView } from 'react-native';
+import { View, Text, ScrollView, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   Save,
@@ -8,8 +8,12 @@ import {
   MapPin,
   Building2,
   ArrowLeftRight,
+  Camera,
 } from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
+
+import { Image } from 'expo-image';
+import { pickImage } from '@/utils/pickImage';
 
 import { useAuthStore } from '@/stores/auth.store';
 import { businessApi, supplierApi } from '@/services/api';
@@ -46,6 +50,16 @@ export default function ProfileScreen() {
     address: '',
     shipping_address: '',
   });
+
+  const handlePickLogo = async () => {
+    const uri = await pickImage({ aspect: [1, 1] });
+    if (uri) updateField('icon', uri);
+  };
+
+  const handlePickBanner = async () => {
+    const uri = await pickImage({ aspect: [16, 9] });
+    if (uri) updateField('banner', uri);
+  };
 
   useEffect(() => {
     if (!profile) return;
@@ -162,16 +176,63 @@ export default function ProfileScreen() {
           </Button>
         </PageHeader>
 
-        <Card style={{ marginBottom: 16 }}>
-          <CardContent style={{ padding: 16 }}>
+        <Card style={{ marginBottom: 16, overflow: 'hidden' }}>
+          {/* Tappable banner */}
+          <Pressable onPress={handlePickBanner} style={{ height: 120, backgroundColor: Colors.muted }}>
+            {formData.banner ? (
+              <Image source={{ uri: formData.banner }} style={{ width: '100%', height: '100%' }} contentFit="cover" />
+            ) : (
+              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+                <Camera size={28} color={Colors.mutedForeground} />
+                <Text style={{ fontSize: 12, fontFamily: 'PlusJakartaSans', color: Colors.mutedForeground, marginTop: 4 }}>
+                  Tap to add banner
+                </Text>
+              </View>
+            )}
+            {/* Edit overlay hint */}
             <View
               style={{
-                flexDirection: 'column',
+                position: 'absolute',
+                bottom: 8,
+                right: 8,
+                backgroundColor: 'rgba(0,0,0,0.5)',
+                borderRadius: 6,
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                flexDirection: 'row',
                 alignItems: 'center',
-                gap: 16,
+                gap: 4,
               }}
             >
-              <Avatar src={typedProfile.icon} fallback={initialsSource} size={96} />
+              <Camera size={12} color="#fff" />
+              <Text style={{ fontSize: 11, fontFamily: 'PlusJakartaSans-Medium', color: '#fff' }}>Edit</Text>
+            </View>
+          </Pressable>
+
+          <CardContent style={{ padding: 16 }}>
+            <View style={{ flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+              {/* Tappable avatar — pulled up to overlap banner */}
+              <Pressable onPress={handlePickLogo} style={{ marginTop: -48 }}>
+                <Avatar src={formData.icon} fallback={initialsSource} size={96} style={{ borderWidth: 4, borderColor: Colors.background }} />
+                <View
+                  style={{
+                    position: 'absolute',
+                    bottom: 0,
+                    right: 0,
+                    width: 28,
+                    height: 28,
+                    borderRadius: 14,
+                    backgroundColor: Colors.primary,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderWidth: 2,
+                    borderColor: Colors.background,
+                  }}
+                >
+                  <Camera size={14} color={Colors.primaryForeground} />
+                </View>
+              </Pressable>
+
               <View style={{ alignItems: 'center', width: '100%' }}>
                 <Text
                   style={{
@@ -262,18 +323,6 @@ export default function ProfileScreen() {
               label="Description"
               value={formData.desc}
               onChangeText={v => updateField('desc', v)}
-            />
-            <Input
-              label="Logo URL"
-              placeholder="https://example.com/logo.png"
-              value={formData.icon}
-              onChangeText={v => updateField('icon', v)}
-            />
-            <Input
-              label="Banner URL"
-              placeholder="https://example.com/banner.png"
-              value={formData.banner}
-              onChangeText={v => updateField('banner', v)}
             />
           </CardContent>
         </Card>
