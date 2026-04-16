@@ -168,12 +168,7 @@ function BusinessDashboard({ profile }: { profile: Business }) {
         return {
           id,
           name: sup?.company_name ?? id,
-          initials: (sup?.company_name ?? 'UN')
-            .split(' ')
-            .map(w => w[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase(),
+          icon: sup?.icon ?? null,
           category: sup?.categories?.[0] ?? '',
           spend,
         };
@@ -442,7 +437,7 @@ function BusinessDashboard({ profile }: { profile: Business }) {
                   <View key={sup.id}>
                     {i > 0 && <ListDivider />}
                     <SupplierRankItem
-                      initials={sup.initials}
+                      iconUrl={sup.icon}
                       name={sup.name}
                       subtitle={sup.category.replace('cat-', '').replace(/^\w/, c => c.toUpperCase())}
                       value={`$${sup.spend.toLocaleString()}`}
@@ -548,12 +543,7 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
         return {
           id,
           name: biz?.company_name ?? id,
-          initials: (biz?.company_name ?? 'UN')
-            .split(' ')
-            .map(w => w[0])
-            .join('')
-            .slice(0, 2)
-            .toUpperCase(),
+          icon: biz?.icon ?? null,
           desc: biz?.desc?.slice(0, 30) ?? '',
           revenue,
         };
@@ -769,7 +759,7 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
                   <View key={biz.id}>
                     {i > 0 && <ListDivider />}
                     <SupplierRankItem
-                      initials={biz.initials}
+                      iconUrl={biz.icon}
                       name={biz.name}
                       subtitle={`${biz.desc}…`}
                       value={`$${biz.revenue.toLocaleString()}`}

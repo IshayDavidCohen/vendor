@@ -1,8 +1,12 @@
+// components/SupplierRankItem.tsx
 import { View, Text, Pressable } from 'react-native';
+import { Avatar } from '@/components/ui/Avatar';
 import { Colors } from '@/constants/theme';
 
 interface SupplierRankItemProps {
-  initials: string;
+  /** Image URL for the company logo. Falls back to initials when absent. */
+  iconUrl?: string | null;
+  /** Full display name — used for both label and initials fallback. */
   name: string;
   subtitle: string;
   value: string;
@@ -10,7 +14,7 @@ interface SupplierRankItemProps {
 }
 
 export function SupplierRankItem({
-  initials,
+  iconUrl,
   name,
   subtitle,
   value,
@@ -25,26 +29,7 @@ export function SupplierRankItem({
         paddingVertical: 8,
       }}
     >
-      <View
-        style={{
-          width: 34,
-          height: 34,
-          borderRadius: 8,
-          backgroundColor: `${Colors.primary}18`,
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 13,
-            fontFamily: 'PlusJakartaSans-Bold',
-            color: Colors.primary,
-          }}
-        >
-          {initials}
-        </Text>
-      </View>
+      <Avatar src={iconUrl} fallback={name} size={34} />
       <View style={{ flex: 1 }}>
         <Text
           style={{
@@ -62,6 +47,7 @@ export function SupplierRankItem({
             fontFamily: 'PlusJakartaSans',
             color: Colors.mutedForeground,
           }}
+          numberOfLines={1}
         >
           {subtitle}
         </Text>
