@@ -1,10 +1,10 @@
+// components/CartSheet.tsx
 import { useState } from 'react';
 import {
   View,
   Text,
   ScrollView,
   Pressable,
-  type ViewStyle,
 } from 'react-native';
 import { Image } from 'expo-image';
 import {
@@ -17,17 +17,35 @@ import Toast from 'react-native-toast-message';
 import { Modal, ModalHeader } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Separator } from '@/components/ui/Separator';
-import { useCartStore, type CartItem } from '@/stores/cart.store';
+import {
+  useCartStore,
+  resolveUnitPrice,
+  type CartItem,
+} from '@/stores/cart.store';
 import { useAuthStore } from '@/stores/auth.store';
 import { ordersApi } from '@/services/api';
+import {
+  formatMoney,
+  formatCurrencyTotals,
+  toCurrencyTotalRows,
+} from '@/utils/formatMoney';
 import { Colors } from '@/constants/theme';
 
-function CartItemRow({ cartItem }: { cartItem: CartItem }) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Row
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CartItemRowProps {
+  cartItem: CartItem;
+  businessId: string | null;
+}
+
+function CartItemRow({ cartItem, businessId }: CartItemRowProps) {
   const updateQuantity = useCartStore(s => s.updateQuantity);
   const removeItem = useCartStore(s => s.removeItem);
-  const price =
-    cartItem.item.custom_prices?.[cartItem.supplierId] ??
-    cartItem.item.base_price;
+
+  const unitPrice = resolveUnitPrice(cartItem, businessId);
+  const lineTotal = unitPrice * cartItem.quantity;
 
   return (
     <View style={{ flexDirection: 'row', gap: 12, paddingVertical: 12 }}>
@@ -58,6 +76,7 @@ function CartItemRow({ cartItem }: { cartItem: CartItem }) {
           </View>
         )}
       </View>
+
       <View style={{ flex: 1 }}>
         <View
           style={{
@@ -94,6 +113,7 @@ function CartItemRow({ cartItem }: { cartItem: CartItem }) {
             <Trash2 size={16} color={Colors.mutedForeground} />
           </Pressable>
         </View>
+
         <View
           style={{
             flexDirection: 'row',
@@ -147,6 +167,7 @@ function CartItemRow({ cartItem }: { cartItem: CartItem }) {
               <Plus size={14} color={Colors.foreground} />
             </Pressable>
           </View>
+
           <Text
             style={{
               fontSize: 14,
@@ -154,13 +175,97 @@ function CartItemRow({ cartItem }: { cartItem: CartItem }) {
               color: Colors.foreground,
             }}
           >
-            {cartItem.item.currency} {(price * cartItem.quantity).toFixed(2)}
+            {formatMoney(lineTotal, cartItem.item.currency)}
           </Text>
         </View>
       </View>
     </View>
   );
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Total block (Option C — per-currency rows)
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface CartTotalBlockProps {
+  totals: Record<string, number>;
+}
+
+function CartTotalBlock({ totals }: CartTotalBlockProps) {
+  const rows = toCurrencyTotalRows(totals);
+
+  // Single-currency path: keep the existing, compact "Total ⋯ $X" layout.
+  if (rows.length <= 1) {
+    const only = rows[0];
+    return (
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+        }}
+      >
+        <Text
+          style={{
+            fontSize: 18,
+            fontFamily: 'PlusJakartaSans-SemiBold',
+            color: Colors.foreground,
+          }}
+        >
+          Total
+        </Text>
+        <Text
+          style={{
+            fontSize: 18,
+            fontFamily: 'PlusJakartaSans-SemiBold',
+            color: Colors.foreground,
+          }}
+        >
+          {only?.amount ?? formatMoney(0, 'USD')}
+        </Text>
+      </View>
+    );
+  }
+
+  // Multi-currency path: one row per currency with a muted label.
+  return (
+    <View style={{ gap: 8 }}>
+      {rows.map(row => (
+        <View
+          key={row.currency}
+          style={{
+            flexDirection: 'row',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+          }}
+        >
+          <Text
+            style={{
+              fontSize: 13,
+              fontFamily: 'PlusJakartaSans',
+              color: Colors.mutedForeground,
+            }}
+          >
+            {row.label}
+          </Text>
+          <Text
+            style={{
+              fontSize: 16,
+              fontFamily: 'PlusJakartaSans-SemiBold',
+              color: Colors.foreground,
+            }}
+          >
+            {row.amount}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sheet
+// ─────────────────────────────────────────────────────────────────────────────
 
 interface CartSheetProps {
   visible: boolean;
@@ -169,16 +274,21 @@ interface CartSheetProps {
 
 export function CartSheet({ visible, onClose }: CartSheetProps) {
   const [loading, setLoading] = useState(false);
+
   const items = useCartStore(s => s.items);
   const getItemsBySupplierId = useCartStore(s => s.getItemsBySupplierId);
   const getTotalItems = useCartStore(s => s.getTotalItems);
-  const getTotalPrice = useCartStore(s => s.getTotalPrice);
+  const getCurrencyTotals = useCartStore(s => s.getCurrencyTotals);
+  const getSupplierCurrencyTotals = useCartStore(s => s.getSupplierCurrencyTotals);
   const clearCart = useCartStore(s => s.clearCart);
+
   const platformId = useAuthStore(s => s.platformId);
+  const role = useAuthStore(s => s.role);
+  const businessId = role === 'business' ? platformId : null;
 
   const itemsBySupplier = getItemsBySupplierId();
   const totalItems = getTotalItems();
-  const totalPrice = getTotalPrice();
+  const currencyTotals = getCurrencyTotals(businessId);
 
   const handlePlaceOrder = async () => {
     if (!platformId || items.length === 0) return;
@@ -191,7 +301,7 @@ export function CartSheet({ visible, onClose }: CartSheetProps) {
         orders[ci.supplierId][ci.item.id] = ci.quantity;
       });
 
-      const { data, error } = await ordersApi.create({
+      const { error } = await ordersApi.create({
         business: platformId,
         orders,
       });
@@ -258,25 +368,52 @@ export function CartSheet({ visible, onClose }: CartSheetProps) {
             style={{ maxHeight: 400, paddingHorizontal: 16 }}
             showsVerticalScrollIndicator={false}
           >
-            {Object.entries(itemsBySupplier).map(([supplierId, supplierItems]) => (
-              <View key={supplierId}>
-                <Text
-                  style={{
-                    fontSize: 13,
-                    fontFamily: 'PlusJakartaSans-SemiBold',
-                    color: Colors.mutedForeground,
-                    marginTop: 12,
-                    marginBottom: 4,
-                  }}
-                >
-                  {supplierItems[0]?.supplierName}
-                </Text>
-                {supplierItems.map(ci => (
-                  <CartItemRow key={ci.item.id} cartItem={ci} />
-                ))}
-                <Separator />
-              </View>
-            ))}
+            {Object.entries(itemsBySupplier).map(([supplierId, supplierItems]) => {
+              const subtotalLabel = formatCurrencyTotals(
+                getSupplierCurrencyTotals(supplierId, businessId),
+              );
+              return (
+                <View key={supplierId}>
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginTop: 12,
+                      marginBottom: 4,
+                    }}
+                  >
+                    <Text
+                      style={{
+                        fontSize: 13,
+                        fontFamily: 'PlusJakartaSans-SemiBold',
+                        color: Colors.mutedForeground,
+                      }}
+                    >
+                      {supplierItems[0]?.supplierName}
+                    </Text>
+                    <Text
+                      style={{
+                        fontSize: 12,
+                        fontFamily: 'PlusJakartaSans',
+                        color: Colors.mutedForeground,
+                      }}
+                    >
+                      {subtotalLabel}
+                    </Text>
+                  </View>
+
+                  {supplierItems.map(ci => (
+                    <CartItemRow
+                      key={ci.item.id}
+                      cartItem={ci}
+                      businessId={businessId}
+                    />
+                  ))}
+                  <Separator />
+                </View>
+              );
+            })}
           </ScrollView>
 
           <View
@@ -287,32 +424,7 @@ export function CartSheet({ visible, onClose }: CartSheetProps) {
               gap: 12,
             }}
           >
-            <View
-              style={{
-                flexDirection: 'row',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}
-            >
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontFamily: 'PlusJakartaSans-SemiBold',
-                  color: Colors.foreground,
-                }}
-              >
-                Total
-              </Text>
-              <Text
-                style={{
-                  fontSize: 18,
-                  fontFamily: 'PlusJakartaSans-SemiBold',
-                  color: Colors.foreground,
-                }}
-              >
-                {items[0]?.item.currency || 'USD'} {totalPrice.toFixed(2)}
-              </Text>
-            </View>
+            <CartTotalBlock totals={currencyTotals} />
             <Button size="lg" onPress={handlePlaceOrder} loading={loading}>
               {loading ? 'Placing Order...' : 'Place Order'}
             </Button>
