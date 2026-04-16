@@ -138,7 +138,7 @@ function SupplierStoreHeader({
         </Pressable>
       </View>
 
-      <View style={{ marginTop: -36, paddingHorizontal: 4 }}>
+      <View style={{ paddingHorizontal: 4 }}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 14 }}>
           <Avatar
             src={supplier?.icon}
