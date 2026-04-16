@@ -1,6 +1,19 @@
+// components/OrderCard.tsx
 import { useState, useCallback } from 'react';
 import { View, Text, Pressable, LayoutAnimation, Platform, UIManager } from 'react-native';
-import { Package, Clock, ChevronDown, Check, X, Truck, Archive, RefreshCw } from 'lucide-react-native';
+import { Image } from 'expo-image';
+import {
+  Package,
+  Clock,
+  ChevronDown,
+  Check,
+  X,
+  Truck,
+  Archive,
+  RefreshCw,
+  Store,
+  Building2,
+} from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
 import { Card, CardContent, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
@@ -8,8 +21,6 @@ import { StatusBadge } from '@/components/StatusBadge';
 import { OrderProgressBar } from '@/components/OrderProgressBar';
 import { ordersApi, itemsApi } from '@/services/api';
 import { useCartStore } from '@/stores/cart.store';
-import { useAuthStore } from '@/stores/auth.store';
-import { getItemById } from '@/mocks/data';
 import { Colors } from '@/constants/theme';
 import type { Order, OrderStatus } from '@/types';
 
@@ -17,17 +28,44 @@ if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental
   UIManager.setLayoutAnimationEnabledExperimental(true);
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Public types
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface OrderCardCounterparty {
+  name: string;
+  icon?: string;
+}
+
 interface OrderCardProps {
   order: Order;
   role: 'business' | 'supplier';
+  /**
+   * The other side of the order.
+   * - When `role === 'business'`, this is the supplier.
+   * - When `role === 'supplier'`, this is the business.
+   *
+   * Parent is responsible for resolving this (see `useCounterparties`).
+   */
+  counterparty?: OrderCardCounterparty;
   onStatusUpdate?: () => void;
   compact?: boolean;
 }
 
-export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardProps) {
+// ─────────────────────────────────────────────────────────────────────────────
+// Component
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function OrderCard({
+  order,
+  role,
+  counterparty,
+  onStatusUpdate,
+  compact,
+}: OrderCardProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  
+
   const addItem = useCartStore(s => s.addItem);
   const updateQuantity = useCartStore(s => s.updateQuantity);
   const cartItems = useCartStore(s => s.items);
@@ -72,7 +110,7 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
     }
   };
 
-    const handleOrderAgain = async () => {
+  const handleOrderAgain = async () => {
     setLoading(true);
     try {
       let anyAdded = false;
@@ -106,6 +144,11 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
     day: 'numeric',
   });
 
+  // Counterparty presentation
+  const CounterpartyIcon = role === 'business' ? Store : Building2;
+  const counterpartyFallback = role === 'business' ? 'Supplier' : 'Customer';
+  const counterpartyName = counterparty?.name ?? counterpartyFallback;
+
   return (
     <Card
       style={open ? { borderColor: Colors.primary, borderWidth: 1.5 } : undefined}
@@ -119,7 +162,16 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
               justifyContent: 'space-between',
             }}
           >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            {/* ── Left: counterparty avatar + name + order meta ── */}
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 12,
+                flex: 1,
+                minWidth: 0,
+              }}
+            >
               <View
                 style={{
                   width: 40,
@@ -128,32 +180,45 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
                   backgroundColor: `${Colors.primary}18`,
                   alignItems: 'center',
                   justifyContent: 'center',
+                  overflow: 'hidden',
                 }}
               >
-                <Package size={20} color={Colors.primary} />
+                {counterparty?.icon ? (
+                  <Image
+                    source={{ uri: counterparty.icon }}
+                    style={{ width: 40, height: 40 }}
+                    contentFit="cover"
+                  />
+                ) : (
+                  <CounterpartyIcon size={20} color={Colors.primary} />
+                )}
               </View>
-              <View>
+              <View style={{ flex: 1, minWidth: 0 }}>
                 <Text
+                  numberOfLines={1}
                   style={{
                     fontSize: 15,
                     fontFamily: 'PlusJakartaSans-SemiBold',
                     color: Colors.foreground,
                   }}
                 >
-                  Order #{order.id.slice(-6)}
+                  {counterpartyName}
                 </Text>
                 <Text
+                  numberOfLines={1}
                   style={{
-                    fontSize: 13,
+                    fontSize: 12,
                     fontFamily: 'PlusJakartaSans',
                     color: Colors.mutedForeground,
                   }}
                 >
-                  {order.ordered_items.length} item
+                  Order #{order.id.slice(-6)} · {order.ordered_items.length} item
                   {order.ordered_items.length !== 1 ? 's' : ''}
                 </Text>
               </View>
             </View>
+
+            {/* ── Right: total, date, status, chevron ── */}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text
@@ -192,7 +257,7 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
           </View>
         </CardHeader>
       </Pressable>
-      
+
       <View style={{ paddingHorizontal: 16, paddingBottom: 12 }}>
         <OrderProgressBar status={order.status} />
       </View>
@@ -246,7 +311,7 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
                       color: Colors.mutedForeground,
                     }}
                   >
-                    Qty: {item.quantity} @ ${item.price_at_order.toFixed(2)}
+                    Qty: {item.quantity} · ${item.price_at_order.toFixed(2)} each
                   </Text>
                 </View>
                 <Text
@@ -260,131 +325,144 @@ export function OrderCard({ order, role, onStatusUpdate, compact }: OrderCardPro
                 </Text>
               </View>
             ))}
-          </View>
 
-          {role === 'supplier' && (
-            <View
-              style={{
-                flexDirection: 'row',
-                flexWrap: 'wrap',
-                gap: 8,
-                marginTop: 12,
-              }}
-            >
-              {order.status === 'pending' && (
+            {/* ── Role-specific action bar ── */}
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+              {role === 'supplier' && order.status === 'pending' && (
                 <>
                   <Button
-                    variant="default"
                     size="sm"
                     onPress={() => handleStatusUpdate('accepted')}
-                    disabled={loading}
-                    style={{ backgroundColor: '#059669' }}
+                    loading={loading}
+                    style={{ flex: 1 }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <Check size={14} color="#fff" />
-                      <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans-SemiBold', fontSize: 13 }}>Accept</Text>
+                      <Check size={14} color={Colors.primaryForeground} />
+                      <Text
+                        style={{
+                          color: Colors.primaryForeground,
+                          fontFamily: 'PlusJakartaSans-SemiBold',
+                          fontSize: 13,
+                        }}
+                      >
+                        Accept
+                      </Text>
                     </View>
                   </Button>
                   <Button
-                    variant="destructive"
                     size="sm"
+                    variant="outline"
                     onPress={() => handleStatusUpdate('rejected')}
-                    disabled={loading}
+                    loading={loading}
+                    style={{ flex: 1 }}
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                      <X size={14} color="#fff" />
-                      <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans-SemiBold', fontSize: 13 }}>Reject</Text>
+                      <X size={14} color={Colors.destructive} />
+                      <Text
+                        style={{
+                          color: Colors.destructive,
+                          fontFamily: 'PlusJakartaSans-SemiBold',
+                          fontSize: 13,
+                        }}
+                      >
+                        Reject
+                      </Text>
                     </View>
                   </Button>
                 </>
               )}
-              {order.status === 'accepted' && (
+
+              {role === 'supplier' && order.status === 'accepted' && (
                 <Button
                   size="sm"
                   onPress={() => handleStatusUpdate('delivering')}
-                  disabled={loading}
+                  loading={loading}
+                  style={{ flex: 1 }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Truck size={14} color="#fff" />
-                    <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans-SemiBold', fontSize: 13 }}>Mark Delivering</Text>
+                    <Truck size={14} color={Colors.primaryForeground} />
+                    <Text
+                      style={{
+                        color: Colors.primaryForeground,
+                        fontFamily: 'PlusJakartaSans-SemiBold',
+                        fontSize: 13,
+                      }}
+                    >
+                      Mark as Delivering
+                    </Text>
                   </View>
                 </Button>
               )}
-              {order.status === 'delivering' && (
+
+              {role === 'business' && order.status === 'delivering' && (
                 <Button
                   size="sm"
                   onPress={() => handleStatusUpdate('arrived')}
-                  disabled={loading}
-                  style={{ backgroundColor: '#059669' }}
+                  loading={loading}
+                  style={{ flex: 1 }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Check size={14} color="#fff" />
-                    <Text style={{ color: '#fff', fontFamily: 'PlusJakartaSans-SemiBold', fontSize: 13 }}>Mark Arrived</Text>
+                    <Check size={14} color={Colors.primaryForeground} />
+                    <Text
+                      style={{
+                        color: Colors.primaryForeground,
+                        fontFamily: 'PlusJakartaSans-SemiBold',
+                        fontSize: 13,
+                      }}
+                    >
+                      Confirm Arrival
+                    </Text>
                   </View>
                 </Button>
               )}
-              {canArchive && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onPress={handleArchive}
-                  disabled={loading}
-                >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Archive size={14} color={Colors.foreground} />
-                    <Text style={{ color: Colors.foreground, fontFamily: 'PlusJakartaSans-SemiBold', fontSize: 13 }}>Archive</Text>
-                  </View>
-                </Button>
+
+              {role === 'business' && canArchive && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onPress={handleOrderAgain}
+                    loading={loading}
+                    style={{ flex: 1 }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <RefreshCw size={14} color={Colors.foreground} />
+                      <Text
+                        style={{
+                          color: Colors.foreground,
+                          fontFamily: 'PlusJakartaSans-SemiBold',
+                          fontSize: 13,
+                        }}
+                      >
+                        Order Again
+                      </Text>
+                    </View>
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onPress={handleArchive}
+                    loading={loading}
+                    style={{ flex: 1 }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Archive size={14} color={Colors.foreground} />
+                      <Text
+                        style={{
+                          color: Colors.foreground,
+                          fontFamily: 'PlusJakartaSans-SemiBold',
+                          fontSize: 13,
+                        }}
+                      >
+                        Archive
+                      </Text>
+                    </View>
+                  </Button>
+                </>
               )}
             </View>
-          )}
-        </CardContent>
-        
-      )}
-
-      {/* Order Again Section */}
-      {!compact && role === 'business' && order.status === 'arrived' && (
-        <View
-          style={{
-            flexDirection: 'row',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            paddingHorizontal: 16,
-            paddingVertical: 10,
-            borderTopWidth: 1,
-            borderTopColor: Colors.border,
-            backgroundColor: Colors.muted,
-            borderBottomLeftRadius: 12,
-            borderBottomRightRadius: 12,
-            overflow: 'hidden',
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <Text style={{ fontSize: 12, fontFamily: 'PlusJakartaSans', color: Colors.mutedForeground }}>
-              Delivered {dateStr}
-            </Text>
           </View>
-          <Pressable
-            onPress={handleOrderAgain}
-            disabled={loading}
-            style={({ pressed }) => ({
-              flexDirection: 'row',
-              alignItems: 'center',
-              gap: 6,
-              backgroundColor: loading ? `${Colors.primary}99` : Colors.primary,
-              borderRadius: 20,
-              paddingVertical: 7,
-              paddingHorizontal: 16,
-              opacity: pressed ? 0.85 : 1,
-              ...(Platform.OS === 'web' ? { cursor: 'pointer' as any } : {}),
-            })}
-          >
-            <RefreshCw size={13} color="#fff" />
-            <Text style={{ fontSize: 13, fontFamily: 'PlusJakartaSans-SemiBold', color: '#fff' }}>
-              Order again
-            </Text>
-          </Pressable>
-        </View>
+        </CardContent>
       )}
     </Card>
   );

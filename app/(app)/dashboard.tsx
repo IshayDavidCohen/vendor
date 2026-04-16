@@ -37,6 +37,8 @@ import { Button } from '@/components/ui/Button';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Colors, Spacing } from '@/constants/theme';
 
+import { useCounterparties } from '@/hooks/useCounterparties';
+
 const STAT_CARD_WIDTH = 260;
 const OrderCardCount = 4; // Number of OrderCards to show in the recent orders section on the dashboard
 
@@ -212,9 +214,16 @@ function BusinessDashboard({ profile }: { profile: Business }) {
     [handshakes],
   );
 
+  const counterparties = useCounterparties(recentOrders, 'business');
+
   const renderOrder: ListRenderItem<Order> = ({ item }) => (
     <View style={{ marginBottom: Spacing.md }}>
-      <OrderCard order={item} role="business" onStatusUpdate={fetchData} />
+      <OrderCard
+        order={item}
+        role="business"
+        counterparty={counterparties[item.id]}
+        onStatusUpdate={fetchData}
+      />
     </View>
   );
 
@@ -569,9 +578,16 @@ function SupplierDashboard({ profile }: { profile: Supplier }) {
     [handshakes],
   );
 
+  const counterparties = useCounterparties(recentOrders, 'supplier');
+
   const renderOrder: ListRenderItem<Order> = ({ item }) => (
     <View style={{ marginBottom: Spacing.md }}>
-      <OrderCard order={item} role="supplier" onStatusUpdate={fetchData} />
+      <OrderCard
+        order={item}
+        role="supplier"
+        counterparty={counterparties[item.id]}
+        onStatusUpdate={fetchData}
+      />
     </View>
   );
 

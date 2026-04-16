@@ -9,10 +9,6 @@ import { useAuthStore } from '@/stores/auth.store';
 import { ordersApi } from '@/services/api';
 import type { Order, OrderStatus, Business, Supplier } from '@/types';
 
-const IN_PROGRESS: OrderStatus[] = ['accepted', 'delivering'];
-const COMPLETED: OrderStatus[] = ['arrived', 'rejected'];
-const VALID_TABS = ['all', 'pending', 'in-progress', 'completed'];
-
 import { OrderCard } from '@/components/OrderCard';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
@@ -20,6 +16,14 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Colors } from '@/constants/theme';
+import { useCounterparties } from '@/hooks/useCounterparties';
+
+
+const IN_PROGRESS: OrderStatus[] = ['accepted', 'delivering'];
+const COMPLETED: OrderStatus[] = ['arrived', 'rejected'];
+const VALID_TABS = ['all', 'pending', 'in-progress', 'completed'];
+
+
 
 function OrderSkeleton() {
   return (
@@ -134,6 +138,8 @@ export default function OrdersScreen() {
   const inProgressOrders = activeOrders.filter(o => IN_PROGRESS.includes(o.status));
   const completedOrders = activeOrders.filter(o => COMPLETED.includes(o.status));
 
+  const counterparties = useCounterparties(activeOrders, role === 'supplier' ? 'supplier' : 'business');
+
   const roleLabel =
     role === 'supplier'
       ? 'Manage orders from your customers'
@@ -179,6 +185,7 @@ export default function OrdersScreen() {
             key={order.id}
             order={order}
             role={role}
+            counterparty={counterparties[order.id]}
             onStatusUpdate={fetchOrders}
           />
         ))
