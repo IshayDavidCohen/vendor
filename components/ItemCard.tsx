@@ -1,3 +1,4 @@
+// components/ItemCard.tsx
 import { Platform, View, Text, Pressable } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Image } from 'expo-image';
@@ -13,6 +14,9 @@ interface ItemCardProps {
   cartQuantity?: number;
   onUpdateQuantity?: (quantity: number) => void;
   disabled?: boolean;
+  /** Called when the user taps the product image. Typically "add to cart or +1". */
+  onImagePress?: () => void;
+  /** Optional whole-card tap (e.g., open detail). Preserved for other screens. */
   onPress?: () => void;
 }
 
@@ -23,6 +27,7 @@ export function ItemCard({
   cartQuantity = 0,
   onUpdateQuantity,
   disabled,
+  onImagePress,
   onPress,
 }: ItemCardProps) {
   const customPrice = businessId ? item.custom_prices?.[businessId] : undefined;
@@ -31,7 +36,12 @@ export function ItemCard({
   const isOutOfStock = item.out_of_stock;
 
   // Business can't add out-of-stock items to cart
-  const canAddToCart = onAddToCart && !disabled && !isOutOfStock;
+  const canAddToCart = !!onAddToCart && !disabled && !isOutOfStock;
+
+  // Image-level tap is enabled only when the card is in a "cart-capable" state
+  // AND the parent actually wired a handler. This keeps the card inert on
+  // surfaces that don't want image-tap behaviour (e.g., supplier's own catalogue).
+  const imageInteractive = canAddToCart && !!onImagePress;
 
   return (
     <Pressable
@@ -64,13 +74,27 @@ export function ItemCard({
           }),
         }}
       >
-        {/* Image */}
-        <View
-          style={{
+        {/* Image — now its own Pressable */}
+        <Pressable
+          onPress={imageInteractive ? onImagePress : undefined}
+          disabled={!imageInteractive}
+          accessibilityRole={imageInteractive ? 'button' : undefined}
+          accessibilityLabel={
+            imageInteractive
+              ? cartQuantity === 0
+                ? `Add ${item.name} to cart`
+                : `Add one more ${item.name} to cart`
+              : undefined
+          }
+          style={({ pressed }) => ({
             height: 120,
             backgroundColor: Colors.muted,
             overflow: 'hidden',
-          }}
+            opacity: pressed && imageInteractive ? 0.85 : 1,
+            ...(Platform.OS === 'web' && imageInteractive
+              ? { cursor: 'pointer' as any }
+              : {}),
+          })}
         >
           {item.image ? (
             <Image
@@ -90,6 +114,7 @@ export function ItemCard({
               <Package size={32} color={Colors.mutedForeground} />
             </View>
           )}
+
           {hasCustomPrice && (
             <View style={{ position: 'absolute', top: 8, right: 8 }}>
               <Badge
@@ -99,6 +124,34 @@ export function ItemCard({
               >
                 Your Price
               </Badge>
+            </View>
+          )}
+
+          {/* In-cart indicator — shows quantity when image is interactive */}
+          {imageInteractive && cartQuantity > 0 && (
+            <View
+              style={{
+                position: 'absolute',
+                top: 8,
+                left: 8,
+                minWidth: 22,
+                height: 22,
+                paddingHorizontal: 6,
+                borderRadius: 11,
+                backgroundColor: Colors.primary,
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Text
+                style={{
+                  color: Colors.primaryForeground,
+                  fontSize: 11,
+                  fontFamily: 'PlusJakartaSans-Bold',
+                }}
+              >
+                {cartQuantity}
+              </Text>
             </View>
           )}
 
@@ -117,12 +170,14 @@ export function ItemCard({
                 justifyContent: 'center',
               }}
             >
-              <View style={{
-                backgroundColor: 'rgba(0,0,0,0.5)',
-                paddingHorizontal: 12,
-                paddingVertical: 4,
-                borderRadius: 6,
-              }}>
+              <View
+                style={{
+                  backgroundColor: 'rgba(0,0,0,0.5)',
+                  paddingHorizontal: 12,
+                  paddingVertical: 4,
+                  borderRadius: 6,
+                }}
+              >
                 <Text
                   style={{
                     color: '#fff',
@@ -137,7 +192,7 @@ export function ItemCard({
               </View>
             </BlurView>
           )}
-        </View>
+        </Pressable>
 
         {/* Content */}
         <View style={{ padding: 10, gap: 4 }}>
@@ -190,7 +245,7 @@ export function ItemCard({
             <View style={{ marginTop: 6 }}>
               {cartQuantity === 0 ? (
                 <Pressable
-                  onPress={() => onAddToCart(item)}
+                  onPress={() => onAddToCart!(item)}
                   style={{
                     backgroundColor: Colors.primary,
                     borderRadius: 8,

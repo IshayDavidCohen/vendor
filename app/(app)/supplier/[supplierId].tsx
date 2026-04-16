@@ -453,51 +453,22 @@ export default function SupplierStorefrontScreen() {
     setHandshakeMessage('Handshake request sent. The supplier will be notified.');
   }, [supplierId, platformId, role]);
 
+  const handleImagePress = useCallback(
+    (it: Item) => {
+      if (!showCart || !supplierId || !supplier) return;
+      const existing = cartItems.find(
+        c => c.item.id === it.id && c.supplierId === supplierId,
+      );
+      if (existing) {
+        updateQuantity(it.id, existing.quantity + 1);
+      } else {
+        addItem(it, supplierId, supplier.company_name);
+      }
+    },
+    [showCart, supplierId, supplier, cartItems, addItem, updateQuantity],
+  );
+
   const skeletonGrid = useMemo(() => Array.from({ length: 6 }, (_, i) => i), []);
-
-  const renderItem: ListRenderItem<Item> = useCallback(
-    ({ item }) => (
-      <View style={{ width: itemColWidth }}>
-        <ItemCard
-          item={item}
-          businessId={platformId ?? undefined}
-          onAddToCart={
-            showCart
-              ? it => addItem(it, supplierId!, supplier!.company_name)
-              : undefined
-          }
-          cartQuantity={getCartQuantity(item.id)}
-          onUpdateQuantity={
-            showCart
-              ? qty => {
-                  updateQuantity(item.id, qty);
-                }
-              : undefined
-          }
-          disabled={!showCart}
-        />
-      </View>
-    ),
-    [
-      itemColWidth,
-      platformId,
-      showCart,
-      supplierId,
-      supplier,
-      addItem,
-      getCartQuantity,
-      updateQuantity,
-    ],
-  );
-
-  const renderItemSkeleton: ListRenderItem<number> = useCallback(
-    () => (
-      <View style={{ width: itemColWidth }}>
-        <ItemSkeletonCell width={itemColWidth} />
-      </View>
-    ),
-    [itemColWidth],
-  );
 
   const onBack = useCallback(() => {
     router.back();
@@ -632,6 +603,9 @@ export default function SupplierStorefrontScreen() {
                     showCart
                       ? qty => updateQuantity(item.id, qty)
                       : undefined
+                  }
+                  onImagePress={
+                    showCart ? () => handleImagePress(item) : undefined
                   }
                   disabled={!showCart}
                 />
