@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useState, useRef } from 'react';
-import { View, ScrollView } from 'react-native';
+import { View, ScrollView, Text as RNText } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Package } from 'lucide-react-native';
+import { Package, History} from 'lucide-react-native';
 import Toast from 'react-native-toast-message';
-import { useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import { useAuthStore } from '@/stores/auth.store';
 import { ordersApi } from '@/services/api';
 import type { Order, OrderStatus, Business, Supplier } from '@/types';
 
+import { Button } from '@/components/ui/Button';
 import { OrderCard } from '@/components/OrderCard';
 import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
@@ -68,6 +69,8 @@ function OrderSkeleton() {
 
 export default function OrdersScreen() {
   const role = useAuthStore(s => s.role);
+  const router = useRouter();
+
   const platformId = useAuthStore(s => s.platformId);
   const profile = useAuthStore(s => s.profile) as Business | Supplier | null;
 
@@ -200,6 +203,15 @@ export default function OrdersScreen() {
     >
       <View style={{ flex: 1, paddingHorizontal: 16, paddingTop: 8 }}>
         <PageHeader title="Orders" description={subtitle} />
+
+        <View style={{ flexDirection: 'row', justifyContent: 'flex-end', marginBottom: 8 }}>
+          <Button variant="default" size="sm" onPress={() => router.push('/(app)/order-history')}>
+            <History size={16} color={Colors.primaryForeground} />
+            <RNText style={{ color: Colors.primaryForeground, fontFamily: 'PlusJakartaSans-SemiBold', fontSize: 13 }}>
+              View History
+            </RNText>
+          </Button>
+        </View>
 
         <Tabs defaultValue="all" value={activeTab} onValueChange={handleTabChange} style={{ flex: 1 }}>
           <TabsList scrollable style={{ marginBottom: 8 }}>

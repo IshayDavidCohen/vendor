@@ -47,6 +47,18 @@ const USE_MOCK_DATA = true;
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'http://localhost:8000';
 
+export interface PaginatedOrders {
+  items: Order[];
+  next_cursor: string | null;
+  has_more: boolean;
+  total: number;
+}
+
+interface HistoryPageParams {
+  cursor?: string | null;
+  limit?: number;
+}
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {},
@@ -545,24 +557,34 @@ export const ordersApi = {
     });
   },
 
-  getBusinessOrders: async (businessId: string): Promise<ApiResponse<Order[]>> => {
+  getBusinessOrders: async (businessId: string, opts?: { since?: string }): Promise<ApiResponse<Order[]>> => {
     if (USE_MOCK_DATA) {
       await delay(250);
+
+      const sinceMs = opts?.since ? new Date(opts.since).getTime() : Date.now() - 7 * 24 * 60 * 60 * 1000;
       const active = mockOrders().filter(o => o.business_id === businessId);
-      const history = mockOrderHistory().filter(o => o.business_id === businessId);
-      return { data: [...active, ...history] };
+      const recentHistory = mockOrderHistory().filter(o => o.business_id === businessId && new Date(o.updated_at).getTime() >= sinceMs);
+      
+      return { data: [...active, ...recentHistory] };
     }
-    return apiRequest<Order[]>(`/api/v1/orders/business/${businessId}`);
+
+    const qs = opts?.since ? `?since=${encodeURIComponent(opts.since)}` : '';
+    return apiRequest<Order[]>(`/api/v1/orders/business/${businessId}${qs}`);
   },
 
-  getSupplierOrders: async (supplierId: string): Promise<ApiResponse<Order[]>> => {
+  getSupplierOrders: async (supplierId: string, opts?: { since?: string }): Promise<ApiResponse<Order[]>> => {
     if (USE_MOCK_DATA) {
       await delay(250);
+      
+      const sinceMs = opts?.since ? new Date(opts.since).getTime() : Date.now() - 7 * 24 * 60 * 60 * 1000;
       const active = mockOrders().filter(o => o.supplier_id === supplierId);
-      const history = mockOrderHistory().filter(o => o.supplier_id === supplierId);
-      return { data: [...active, ...history] };
+      const recentHistory = mockOrderHistory().filter(o => o.supplier_id === supplierId && new Date(o.updated_at).getTime() >= sinceMs);
+      
+      return { data: [...active, ...recentHistory] };
     }
-    return apiRequest<Order[]>(`/api/v1/orders/supplier/${supplierId}`);
+    
+    const qs = opts?.since ? `?since=${encodeURIComponent(opts.since)}` : '';
+    return apiRequest<Order[]>(`/api/v1/orders/supplier/${supplierId}${qs}`);
   },
 
   archive: async (orderId: string): Promise<ApiResponse<{ success: boolean }>> => {
@@ -575,4 +597,64 @@ export const ordersApi = {
       method: 'POST',
     });
   },
+
+  getBusinessHistory: async (businessId: string, { cursor, limit = 20 }: HistoryPageParams = {}): Promise<ApiResponse<PaginatedOrders>> => {
+  if (USE_MOCK_DATA) {
+    await delay(200);
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    
+    const all = mockOrderHistory()
+      .filter(o => o.business_id === businessId)
+      .filter(o => new Date(o.updated_at).getTime() < sevenDaysAgo)
+      .sort((a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      );
+    
+    const total = all.length;
+
+    const beforeMs = cursor ? new Date(cursor).getTime() : Infinity;
+
+    const page = all.filter(o => new Date(o.updated_at).getTime() < beforeMs).slice(0, limit + 1);
+    const has_more = page.length > limit;
+    const items = page.slice(0, limit);
+    const next_cursor = has_more && items.length > 0 ? items[items.length - 1].updated_at : null;
+    
+    return { data: { items, next_cursor, has_more, total } };
+  }
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  params.set('limit', String(limit));
+  
+  return apiRequest<PaginatedOrders>(`/api/v1/orders/business/${businessId}/history?${params}`);
+},
+
+getSupplierHistory: async (supplierId: string, { cursor, limit = 20 }: HistoryPageParams = {}): Promise<ApiResponse<PaginatedOrders>> => {
+  if (USE_MOCK_DATA) {
+    await delay(200);
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    
+    const all = mockOrderHistory()
+      .filter(o => o.supplier_id === supplierId)
+      .filter(o => new Date(o.updated_at).getTime() < sevenDaysAgo)
+      .sort((a, b) =>
+        new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
+      );
+    
+    const total = all.length;
+    const beforeMs = cursor ? new Date(cursor).getTime() : Infinity;
+    const page = all.filter(o => new Date(o.updated_at).getTime() < beforeMs).slice(0, limit + 1);
+    
+    const has_more = page.length > limit;
+    const items = page.slice(0, limit);
+    
+    const next_cursor = has_more && items.length > 0 ? items[items.length - 1].updated_at : null;
+    
+    return { data: { items, next_cursor, has_more, total } };
+  }
+  const params = new URLSearchParams();
+  if (cursor) params.set('cursor', cursor);
+  params.set('limit', String(limit));
+  return apiRequest<PaginatedOrders>(`/api/v1/orders/supplier/${supplierId}/history?${params}`);
+},
+
 };

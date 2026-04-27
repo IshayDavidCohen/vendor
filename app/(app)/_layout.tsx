@@ -173,6 +173,12 @@ export default function AppLayout() {
               name="cart"
               options={{ href: null, headerShown: false }}
             />
+
+            <Tabs.Screen
+              name="order-history"
+              options={{ href: null, headerShown: false }}
+            />
+
           </Tabs>
         </View>
       </View>
