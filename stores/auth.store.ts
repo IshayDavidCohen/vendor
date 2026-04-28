@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import type { Business, Supplier, UserRole } from '@/types';
 import { mockBusinesses, mockSuppliers } from '@/mocks/data';
 
-const BYPASS_AUTH = true;
+const BYPASS_AUTH = false;
 
 interface MockUser {
   uid: string;
